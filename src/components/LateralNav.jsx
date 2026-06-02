@@ -151,8 +151,8 @@ function LateralNav() {
             )}
 
             <nav
-                className={`lateral-nav bg-black z-50 border-l-2 border-black
-                    md:w-2/12 md:h-screen md:sticky md:top-0 md:self-start md:translate-x-0 md:order-2
+                className={`bg-black z-50 border-l-2 border-black
+                    md:w-2/12 md:h-screen md:sticky! md:top-0! md:right-auto! md:self-start md:translate-x-0 md:order-2
                     fixed top-0 right-0 h-full w-72 max-w-[85vw] transform transition-transform duration-300
                     ${mobileOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}
             >
