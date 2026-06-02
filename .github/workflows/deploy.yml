@@ -43,6 +43,27 @@ jobs:
 
             test -f .env
 
+            # Auto-initialiser les variables auth critiques si elles sont absentes
+            if ! grep -q '^AUTH_JWT_SECRET=' .env; then
+              JWT_SECRET=$(openssl rand -hex 48 2>/dev/null || cat /proc/sys/kernel/random/uuid | tr -d '-')
+              echo "AUTH_JWT_SECRET=$JWT_SECRET" >> .env
+              echo "AUTH_JWT_SECRET ajoute automatiquement dans .env"
+            fi
+
+            if ! grep -q '^AUTH_SESSION_SECRET=' .env; then
+              SESSION_SECRET=$(openssl rand -hex 48 2>/dev/null || cat /proc/sys/kernel/random/uuid | tr -d '-')
+              echo "AUTH_SESSION_SECRET=$SESSION_SECRET" >> .env
+              echo "AUTH_SESSION_SECRET ajoute automatiquement dans .env"
+            fi
+
+            if ! grep -q '^FRONTEND_BASE_URL=' .env; then
+              echo "FRONTEND_BASE_URL=https://moviedb.azim404.com" >> .env
+            fi
+
+            if ! grep -q '^AUTH_BASE_URL=' .env; then
+              echo "AUTH_BASE_URL=https://moviedb.azim404.com" >> .env
+            fi
+
             docker compose down || true
             docker compose up -d --build
             docker image prune -f
