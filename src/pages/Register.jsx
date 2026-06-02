@@ -1,14 +1,32 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { authApi } from '../services/authApi';
 
 function Register() {
+    const location = useLocation();
     const [displayName, setDisplayName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [googleEnabled, setGoogleEnabled] = useState(false);
+    const [githubEnabled, setGithubEnabled] = useState(false);
+
+    const redirectTo = location.state?.from?.pathname || '/';
+
+    useEffect(() => {
+        authApi
+            .oauthProviders()
+            .then((data) => {
+                setGoogleEnabled(Boolean(data.google));
+                setGithubEnabled(Boolean(data.github));
+            })
+            .catch(() => {
+                setGoogleEnabled(false);
+                setGithubEnabled(false);
+            });
+    }, []);
 
     const onSubmit = async (e) => {
         e.preventDefault();
@@ -50,6 +68,33 @@ function Register() {
 
                 {error && <div className="mb-4 p-3 border border-red-300 bg-red-50 text-red-700 font-serif">{error}</div>}
                 {message && <div className="mb-4 p-3 border border-green-300 bg-green-50 text-green-700 font-serif">{message}</div>}
+
+                <div className="mb-4 border-2 border-gray-300 bg-white p-4">
+                    <p className="mb-3 text-xs font-display uppercase tracking-wider text-gray-600">Inscription rapide</p>
+                    {googleEnabled && (
+                        <a
+                            href={authApi.getGoogleOAuthUrl(redirectTo)}
+                            className="w-full block text-center px-4 py-2 bg-white border-2 border-gray-800 text-gray-700 font-display uppercase tracking-wider hover:bg-gray-100"
+                        >
+                            S'inscrire avec Google
+                        </a>
+                    )}
+
+                    {githubEnabled && (
+                        <a
+                            href={authApi.getGithubOAuthUrl(redirectTo)}
+                            className="mt-3 w-full block text-center px-4 py-2 bg-black border-2 border-gray-800 text-gray-300 font-display uppercase tracking-wider hover:bg-gray-900"
+                        >
+                            S'inscrire avec GitHub
+                        </a>
+                    )}
+
+                    {!googleEnabled && !githubEnabled && (
+                        <div className="p-3 border border-gray-300 bg-white text-gray-600 font-serif text-sm">
+                            Inscription OAuth non disponible pour le moment (Google/GitHub).
+                        </div>
+                    )}
+                </div>
 
                 <form onSubmit={onSubmit} className="space-y-4 border-2 border-gray-300 bg-white p-6">
                     <div>
