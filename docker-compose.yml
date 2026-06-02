@@ -1,12 +1,12 @@
 services:
-  cinetech:
+  kulturdb:
     build:
       context: .
       dockerfile: Dockerfile
       args:
         VITE_TMDB_API_KEY: ${VITE_TMDB_API_KEY:?VITE_TMDB_API_KEY is required}
         VITE_TMDB_BASE_URL: ${VITE_TMDB_BASE_URL:-https://api.themoviedb.org/3}
-    container_name: cinetech
+    container_name: kulturdb
     restart: unless-stopped
     depends_on:
       - api
@@ -19,7 +19,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: cinetech-api
+    container_name: kulturdb-api
     restart: unless-stopped
     environment:
       AUTH_PORT: 4000
@@ -30,7 +30,7 @@ services:
       AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:-change_me_in_production}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-}
-      BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-MovieDB}
+      BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-KulturDB}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}

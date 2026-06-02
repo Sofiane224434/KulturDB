@@ -6,11 +6,11 @@ function Footer() {
             <div className="h-6 mx-auto border2-separator"></div>
             <div className="max-w-7xl mx-auto px-6 py-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                    {/* MovieDB Section */}
+                    {/* KulturDB Section */}
                     <div>
                         <div className="flex items-center gap-2 mb-6">
                             <h3 className="text-3xl font-display uppercase tracking-widest text-gray-700">
-                                <span className="text-4xl">M</span>ovie<span className="text-4xl">D</span><span className="text-4xl">B</span>
+                                <span className="text-4xl">K</span>ultur<span className="text-4xl">D</span><span className="text-4xl">B</span>
                             </h3>
                         </div>
                         <p className="text-sm text-gray-600 font-serif leading-relaxed">
@@ -50,7 +50,7 @@ function Footer() {
 
                 {/* Copyright */}
                 <div className="mt-12 pt-8 border-t border-gray-300 text-center">
-                    <p className="text-xs tracking-[0.2em] uppercase text-gray-600 font-serif">© 2026 MovieDB. Tous droits réservés.</p>
+                    <p className="text-xs tracking-[0.2em] uppercase text-gray-600 font-serif">© 2026 KulturDB. Tous droits réservés.</p>
                 </div>
             </div>
         </footer>

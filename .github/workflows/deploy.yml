@@ -22,7 +22,7 @@ jobs:
           script: |
             set -e
 
-            APP_DIR=~/apps/cinetech
+            APP_DIR=~/apps/kulturdb
             REPO_URL=https://github.com/${{ github.repository }}.git
 
             docker network inspect web >/dev/null 2>&1 || docker network create web

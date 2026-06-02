@@ -1,6 +1,6 @@
-# cinetech
+# KulturDB
 
-Application front Movie DB servie sur moviedb.azim404.com.
+Application front KulturDB servie sur moviedb.azim404.com.
 
 ## Stack
 
@@ -104,7 +104,7 @@ npm run dev:api
 
 ## Deploiement
 
-Le workflow deploye dans ~/apps/cinetech puis reconstruit l'image sur le VPS.
+Le workflow deploye dans ~/apps/kulturdb puis reconstruit l'image sur le VPS.
 
 Secrets GitHub requis:
 

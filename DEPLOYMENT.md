@@ -1,11 +1,11 @@
-# Deploiement Cinetech
+# Deploiement KulturDB
 
 Ce projet est deploye sur le VPS avec l'architecture reelle suivante:
 
 - DNS OVH vers l'IP du VPS
 - Nginx installe sur l'hote
 - Certbot sur l'hote pour le TLS
-- Docker Compose dans ~/apps/cinetech
+- Docker Compose dans ~/apps/kulturdb
 - Conteneur accessible uniquement sur 127.0.0.1:3003
 - API auth interne disponible via /api (proxy Nginx conteneur)
 
@@ -25,8 +25,8 @@ Le port SSH est actuellement fixe a 2222 dans le workflow.
 
 ```bash
 docker network inspect web >/dev/null 2>&1 || docker network create web
-mkdir -p ~/apps/cinetech
-cd ~/apps/cinetech
+mkdir -p ~/apps/kulturdb
+cd ~/apps/kulturdb
 cp .env.example .env
 ```
 
@@ -44,7 +44,7 @@ FRONTEND_BASE_URL=https://moviedb.azim404.com
 
 BREVO_API_KEY=
 BREVO_SENDER_EMAIL=
-BREVO_SENDER_NAME=MovieDB
+BREVO_SENDER_NAME=KulturDB
 
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
@@ -66,7 +66,7 @@ Notes:
 ## Deploiement manuel de secours
 
 ```bash
-cd ~/apps/cinetech
+cd ~/apps/kulturdb
 git fetch origin
 git reset --hard origin/main
 git clean -fd -e .env
@@ -77,7 +77,7 @@ docker compose up -d --build
 ## Verification
 
 ```bash
-cd ~/apps/cinetech
+cd ~/apps/kulturdb
 docker compose ps
 docker compose logs --tail=100
 curl -I https://moviedb.azim404.com

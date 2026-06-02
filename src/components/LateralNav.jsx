@@ -132,7 +132,7 @@ function LateralNav() {
                         <span className="font-display font-bold text-2xl leading-none text-black">M</span>
                     </span>
                     <span className="text-lg font-bold text-gray-300 tracking-widest font-display">
-                        OVIE<span className="text-xl">DB</span>
+                        ULTUR<span className="text-xl">DB</span>
                     </span>
                 </Link>
                 <button
@@ -178,7 +178,7 @@ function LateralNav() {
                                 <span className="font-display font-bold text-6xl leading-none text-black">M</span>
                             </span>
                             <h3 className="text-2xl font-bold text-gray-400 tracking-widest font-display underline decoration-gray-600 decoration-2 underline-offset-4 group-hover:text-gray-300 transition-colors text-center">
-                                <span className="text-3xl">M</span>OVIE<span className="text-3xl">D</span><span className="text-3xl">B</span>
+                                <span className="text-3xl">K</span>ULTUR<span className="text-3xl">D</span><span className="text-3xl">B</span>
                             </h3>
                         </div>
                     </Link>

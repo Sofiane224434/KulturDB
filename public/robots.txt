@@ -1,4 +1,4 @@
-# robots.txt - Configuration SEO MovieDB
+# robots.txt - Configuration SEO KulturDB
 
 # Autoriser tous les crawlers
 User-agent: *

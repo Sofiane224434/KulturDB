@@ -18,7 +18,7 @@ export const config = {
     authBaseUrl: process.env.AUTH_BASE_URL || 'http://localhost:4000',
     brevoApiKey: process.env.BREVO_API_KEY || '',
     brevoSenderEmail: process.env.BREVO_SENDER_EMAIL || '',
-    brevoSenderName: process.env.BREVO_SENDER_NAME || 'MovieDB',
+    brevoSenderName: process.env.BREVO_SENDER_NAME || 'KulturDB',
     googleClientId: process.env.GOOGLE_CLIENT_ID || '',
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     googleCallbackUrl:

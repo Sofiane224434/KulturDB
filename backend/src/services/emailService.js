@@ -25,10 +25,10 @@ export async function sendVerificationEmail({ toEmail, displayName, verifyUrl })
     await apiInstance.sendTransacEmail({
         sender,
         to: [{ email: toEmail, name: displayName }],
-        subject: 'Confirme ton adresse email - MovieDB',
+        subject: 'Confirme ton adresse email - KulturDB',
         htmlContent: `
       <div style="font-family:Arial,sans-serif;line-height:1.5;color:#1f2937;max-width:600px;margin:auto">
-        <h2 style="margin-bottom:8px;">Bienvenue sur MovieDB ${displayName ? `, ${displayName}` : ''}</h2>
+        <h2 style="margin-bottom:8px;">Bienvenue sur KulturDB ${displayName ? `, ${displayName}` : ''}</h2>
         <p>Confirme ton adresse email pour activer ton compte.</p>
         <p style="margin:20px 0;">
           <a href="${verifyUrl}" style="background:#111827;color:#fff;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block;">
