@@ -7,8 +7,12 @@ import {
     createLocalUser,
     findUserByEmail,
     findUserById,
+    findPendingByEmail,
+    getValidPendingRegistrationToken,
+    markPendingRegistrationUsed,
     publicUser,
     storeVerificationToken,
+    upsertPendingRegistration,
     getValidVerificationToken,
     markVerificationTokenUsed,
     updateUserVerification,
@@ -52,23 +56,31 @@ router.post('/register', async (req, res) => {
     }
 
     const existing = findUserByEmail(email);
-    if (existing) {
-        return res.status(409).json({ message: 'Un compte existe déjà avec cet email.' });
+    if (existing && existing.email_verified) {
+        return res.status(409).json({ message: 'Un compte vérifié existe déjà avec cet email.' });
     }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-    const user = createLocalUser({ email, displayName, passwordHash });
 
     const token = generateEmailVerificationToken();
     const expiresAt = getVerificationExpiryDate();
-    storeVerificationToken({ userId: user.id, token, expiresAt });
+
+    if (existing && !existing.email_verified) {
+        storeVerificationToken({ userId: existing.id, token, expiresAt });
+    } else {
+        const passwordHash = await bcrypt.hash(password, 10);
+        upsertPendingRegistration({
+            email,
+            displayName,
+            passwordHash,
+            token,
+            expiresAt,
+        });
+    }
 
     const verifyUrl = `${config.frontendBaseUrl}/auth/verify-email?token=${token}`;
-    await sendVerificationEmail({ toEmail: user.email, displayName: user.display_name, verifyUrl });
+    await sendVerificationEmail({ toEmail: email.toLowerCase(), displayName, verifyUrl });
 
     return res.status(201).json({
-        message: 'Compte créé. Vérifie ton email pour activer ton compte.',
-        user: publicUser(user),
+        message: 'Inscription en attente. Vérifie ton email pour finaliser la création du compte.',
     });
 });
 
@@ -108,20 +120,37 @@ router.post('/resend-verification', async (req, res) => {
     }
 
     const user = findUserByEmail(email);
-    if (!user) {
+    const pending = findPendingByEmail(email);
+
+    if (!user && !pending) {
         return res.json({ message: 'Si ce compte existe, un email de vérification a été envoyé.' });
     }
 
-    if (user.email_verified) {
+    if (user && user.email_verified) {
         return res.json({ message: 'Ce compte est déjà vérifié.' });
     }
 
     const token = generateEmailVerificationToken();
     const expiresAt = getVerificationExpiryDate();
-    storeVerificationToken({ userId: user.id, token, expiresAt });
+
+    if (pending) {
+        upsertPendingRegistration({
+            email,
+            displayName: pending.display_name,
+            passwordHash: pending.password_hash,
+            token,
+            expiresAt,
+        });
+    } else {
+        storeVerificationToken({ userId: user.id, token, expiresAt });
+    }
 
     const verifyUrl = `${config.frontendBaseUrl}/auth/verify-email?token=${token}`;
-    await sendVerificationEmail({ toEmail: user.email, displayName: user.display_name, verifyUrl });
+    await sendVerificationEmail({
+        toEmail: (pending?.email || user.email).toLowerCase(),
+        displayName: pending?.display_name || user.display_name,
+        verifyUrl,
+    });
 
     return res.json({ message: 'Email de vérification renvoyé.' });
 });
@@ -132,14 +161,35 @@ router.post('/verify-email', (req, res) => {
         return res.status(400).json({ message: 'Token requis.' });
     }
 
-    const verification = getValidVerificationToken(token);
-    if (!verification) {
-        return res.status(400).json({ message: 'Token invalide ou expiré.' });
-    }
+    const pending = getValidPendingRegistrationToken(token);
+    let user;
 
-    markVerificationTokenUsed(token);
-    updateUserVerification(verification.user_id, true);
-    const user = findUserById(verification.user_id);
+    if (pending) {
+        const existing = findUserByEmail(pending.email);
+        if (existing) {
+            if (!existing.email_verified) {
+                updateUserVerification(existing.id, true);
+            }
+            user = findUserById(existing.id);
+        } else {
+            user = createLocalUser({
+                email: pending.email,
+                displayName: pending.display_name,
+                passwordHash: pending.password_hash,
+                emailVerified: true,
+            });
+        }
+        markPendingRegistrationUsed(token);
+    } else {
+        const verification = getValidVerificationToken(token);
+        if (!verification) {
+            return res.status(400).json({ message: 'Token invalide ou expiré.' });
+        }
+
+        markVerificationTokenUsed(token);
+        updateUserVerification(verification.user_id, true);
+        user = findUserById(verification.user_id);
+    }
 
     const authToken = signAuthToken(user);
 

@@ -49,7 +49,7 @@ Variables OAuth GitHub:
 
 ## Fonctionnalites auth
 
-- Inscription avec email + mot de passe
+- Inscription en attente (le compte est cree seulement apres verification email)
 - Verification email via Brevo (lien de confirmation)
 - Connexion locale (JWT)
 - OAuth Google (si variables Google configurees)

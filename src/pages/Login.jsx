@@ -119,6 +119,12 @@ function Login() {
                     </a>
                 )}
 
+                {!googleEnabled && !githubEnabled && (
+                    <div className="mt-4 p-3 border border-gray-300 bg-white text-gray-600 font-serif text-sm">
+                        OAuth est disponible, mais pas encore configuré sur le serveur (Google/GitHub).
+                    </div>
+                )}
+
                 <p className="mt-4 font-serif text-gray-600">
                     Pas encore de compte ?{' '}
                     <Link to="/register" className="underline text-gray-800">

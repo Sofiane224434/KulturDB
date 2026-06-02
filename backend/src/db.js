@@ -33,6 +33,20 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS pending_registrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    display_name TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    token TEXT UNIQUE NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   CREATE INDEX IF NOT EXISTS idx_tokens_token ON email_verification_tokens(token);
+  CREATE INDEX IF NOT EXISTS idx_pending_email ON pending_registrations(email);
+  CREATE INDEX IF NOT EXISTS idx_pending_token ON pending_registrations(token);
 `);
