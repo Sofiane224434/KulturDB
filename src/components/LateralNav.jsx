@@ -152,7 +152,7 @@ function LateralNav() {
 
             <nav
                 className={`bg-black z-50 border-l-2 border-black
-                    md:w-2/12 md:h-screen md:sticky md:top-0 md:right-auto md:self-start md:translate-x-0 md:order-2
+                    md:w-2/12 md:h-fit md:sticky md:top-0 md:right-auto md:self-start md:translate-x-0 md:order-2
                     fixed top-0 right-0 h-full w-72 max-w-[85vw] transform transition-transform duration-300
                     ${mobileOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}
             >
@@ -166,7 +166,7 @@ function LateralNav() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
-                <div className="flex flex-col h-full max-h-screen overflow-y-auto no-scrollbar">
+                <div className="flex flex-col h-full md:h-auto overflow-y-auto md:overflow-visible no-scrollbar">
                     <Link to="/">
                         <div className="p-4 flex flex-col items-center gap-3 cursor-pointer group">
                             <span className="flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-lg group-hover:scale-105 transition-transform">
@@ -307,32 +307,7 @@ function LateralNav() {
                                     </button>
                                 </li>
                             </>
-                        ) : (
-                            <>
-                                <li>
-                                    <Link
-                                        to="/login"
-                                        className={`block py-2 px-3 text-base font-display uppercase tracking-widest transition-all border-l-2 ${location.pathname === '/login'
-                                                ? 'text-gray-300 bg-gray-900 border-gray-500'
-                                                : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900 border-transparent hover:border-gray-500'
-                                            }`}
-                                    >
-                                        Connexion
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link
-                                        to="/register"
-                                        className={`block py-2 px-3 text-base font-display uppercase tracking-widest transition-all border-l-2 ${location.pathname === '/register'
-                                                ? 'text-gray-300 bg-gray-900 border-gray-500'
-                                                : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900 border-transparent hover:border-gray-500'
-                                            }`}
-                                    >
-                                        Inscription
-                                    </Link>
-                                </li>
-                            </>
-                        )}
+                        ) : null}
                     </ul>
                 </div>
             </nav>
