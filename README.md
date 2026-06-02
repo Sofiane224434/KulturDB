@@ -56,6 +56,14 @@ Variables OAuth GitHub:
 - OAuth GitHub (si variables GitHub configurees)
 - Routes privees protegees: /favorites et /watchlist (redirection auto vers /login)
 
+Watchlist avancee:
+
+- Suivi du statut: a voir/lire, en cours, deja vu/lu, revoir/relire
+- Suivi progression: episode/chapitre/tome/page + current/total
+- Entrees manuelles: manga, manwha, light novel, roman (scan disponible)
+- Notes et commentaires: appreciation personnelle + commentaire public
+- Priorite des notes: IMDb si presente, sinon TMDB
+
 Routes frontend ajoutees:
 
 - /login

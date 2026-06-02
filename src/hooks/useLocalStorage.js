@@ -89,39 +89,111 @@ export const useRatings = () => {
 
 // Hook pour gérer la watchlist
 export const useWatchlist = () => {
+  const normalizeItem = (item) => ({
+    ...item,
+    status: item.status || 'to_start',
+    progressCurrent: Number.isFinite(item.progressCurrent) ? item.progressCurrent : 0,
+    progressTotal: Number.isFinite(item.progressTotal) ? item.progressTotal : null,
+    progressUnit: item.progressUnit || 'episode',
+    hasSeen: Boolean(item.hasSeen),
+    wantRewatch: Boolean(item.wantRewatch),
+    personalNote: item.personalNote || '',
+    publicComment: item.publicComment || '',
+    personalRating: Number.isFinite(item.personalRating) ? item.personalRating : 0,
+    scanAvailable: Boolean(item.scanAvailable),
+    imdbRating: Number.isFinite(item.imdbRating) ? item.imdbRating : null,
+  });
+
   const getWatchlist = () => {
     const watchlist = localStorage.getItem('moviedb_watchlist');
-    return watchlist ? JSON.parse(watchlist) : [];
+    const parsed = watchlist ? JSON.parse(watchlist) : [];
+    return parsed.map(normalizeItem);
   };
 
   const addToWatchlist = (item, type) => {
     const watchlist = getWatchlist();
-    const newItem = { ...item, type, addedAt: Date.now(), status: 'to_watch' };
+    const defaultUnit = type === 'movie' ? 'film' : 'episode';
+    const newItem = normalizeItem({ ...item, type, addedAt: Date.now(), status: 'to_start', progressUnit: defaultUnit });
     const updated = [...watchlist, newItem];
     localStorage.setItem('moviedb_watchlist', JSON.stringify(updated));
     return updated;
   };
 
-  const removeFromWatchlist = (id) => {
+  const addManualEntry = (payload) => {
     const watchlist = getWatchlist();
-    const updated = watchlist.filter(item => item.id !== id);
+    const generatedId = Date.now();
+    const progressUnit = payload.progressUnit || 'chapitre';
+    const newItem = normalizeItem({
+      id: generatedId,
+      type: payload.type,
+      title: payload.title,
+      poster_path: null,
+      addedAt: Date.now(),
+      status: payload.status || 'to_start',
+      progressCurrent: payload.progressCurrent ?? 0,
+      progressTotal: payload.progressTotal ?? null,
+      progressUnit,
+      scanAvailable: Boolean(payload.scanAvailable),
+      imdbRating: Number.isFinite(payload.imdbRating) ? payload.imdbRating : null,
+      publicComment: payload.publicComment || '',
+      personalNote: payload.personalNote || '',
+      personalRating: payload.personalRating ?? 0,
+      hasSeen: Boolean(payload.hasSeen),
+      wantRewatch: Boolean(payload.wantRewatch),
+      isManual: true,
+    });
+
+    const updated = [...watchlist, newItem];
     localStorage.setItem('moviedb_watchlist', JSON.stringify(updated));
     return updated;
   };
 
-  const updateWatchlistStatus = (id, status) => {
+  const removeFromWatchlist = (id, type = null) => {
+    const watchlist = getWatchlist();
+    const updated = watchlist.filter(item => {
+      if (type) {
+        return !(item.id === id && item.type === type);
+      }
+      return item.id !== id;
+    });
+    localStorage.setItem('moviedb_watchlist', JSON.stringify(updated));
+    return updated;
+  };
+
+  const updateWatchlistStatus = (id, status, type = null) => {
     const watchlist = getWatchlist();
     const updated = watchlist.map(item => 
-      item.id === id ? { ...item, status } : item
+      (type ? item.id === id && item.type === type : item.id === id) ? { ...item, status } : item
     );
     localStorage.setItem('moviedb_watchlist', JSON.stringify(updated));
     return updated;
   };
 
-  const isInWatchlist = (id) => {
+  const updateWatchlistItem = (id, patch, type = null) => {
     const watchlist = getWatchlist();
-    return watchlist.some(item => item.id === id);
+    const updated = watchlist.map(item => {
+      const match = type ? item.id === id && item.type === type : item.id === id;
+      if (!match) {
+        return item;
+      }
+      return normalizeItem({ ...item, ...patch });
+    });
+    localStorage.setItem('moviedb_watchlist', JSON.stringify(updated));
+    return updated;
   };
 
-  return { getWatchlist, addToWatchlist, removeFromWatchlist, updateWatchlistStatus, isInWatchlist };
+  const isInWatchlist = (id, type = null) => {
+    const watchlist = getWatchlist();
+    return watchlist.some(item => (type ? item.id === id && item.type === type : item.id === id));
+  };
+
+  return {
+    getWatchlist,
+    addToWatchlist,
+    addManualEntry,
+    removeFromWatchlist,
+    updateWatchlistStatus,
+    updateWatchlistItem,
+    isInWatchlist,
+  };
 };

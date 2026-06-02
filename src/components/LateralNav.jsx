@@ -33,6 +33,10 @@ function LateralNav() {
         { name: 'Séries', path: '/series' },
         { name: 'Anime', path: '/anime' },
         { name: 'Watchlist', path: '/watchlist' },
+        { name: 'Mangas', path: '/watchlist?type=manga' },
+        { name: 'Manwha', path: '/watchlist?type=manwha' },
+        { name: 'Light Novels', path: '/watchlist?type=light_novel' },
+        { name: 'Romans', path: '/watchlist?type=roman' },
         { name: 'Favoris', path: '/favorites' }
     ];
 
@@ -152,7 +156,7 @@ function LateralNav() {
 
             <nav
                 className={`bg-black z-50 border-l-2 border-black
-                    md:w-2/12 md:h-fit md:sticky md:top-0 md:right-auto md:self-start md:translate-x-0 md:order-2
+                    md:w-2/12 md:static md:right-auto md:self-start md:translate-x-0 md:order-2
                     fixed top-0 right-0 h-full w-72 max-w-[85vw] transform transition-transform duration-300
                     ${mobileOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}
             >
@@ -166,6 +170,7 @@ function LateralNav() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
+                <div className="md:sticky md:top-0">
                 <div className="flex flex-col h-full md:h-auto overflow-y-auto md:overflow-visible no-scrollbar">
                     <Link to="/">
                         <div className="p-4 flex flex-col items-center gap-3 cursor-pointer group">
@@ -281,7 +286,7 @@ function LateralNav() {
                             <li key={link.path}>
                                 <Link
                                     to={link.path}
-                                    className={`block py-2 px-3 text-base font-display uppercase tracking-widest transition-all border-l-2 ${location.pathname === link.path
+                                    className={`block py-2 px-3 text-base font-display uppercase tracking-widest transition-all border-l-2 ${(`${location.pathname}${location.search}` === link.path || location.pathname === link.path)
                                             ? 'text-gray-300 bg-gray-900 border-gray-500'
                                             : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900 border-transparent hover:border-gray-500'
                                         }`}
@@ -309,6 +314,7 @@ function LateralNav() {
                             </>
                         ) : null}
                     </ul>
+                </div>
                 </div>
             </nav>
         </>

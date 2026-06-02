@@ -37,7 +37,7 @@ function SeriesDetail() {
                 setSeries(seriesData);
                 setIsFav(isFavorite(parseInt(id)));
                 setUserRating(getRating(id));
-                setIsInWatch(isInWatchlist(parseInt(id)));
+                setIsInWatch(isInWatchlist(parseInt(id), 'series'));
                 setComments(getComments(id));
                 
                 // Trouver la bande-annonce (français ou anglais)
@@ -88,9 +88,17 @@ function SeriesDetail() {
 
     const handleWatchlistToggle = () => {
         if (isInWatch) {
-            removeFromWatchlist(parseInt(id));
+            removeFromWatchlist(parseInt(id), 'series');
         } else {
-            addToWatchlist({ id: series.id, name: series.name, poster_path: series.poster_path }, 'series');
+            addToWatchlist(
+                {
+                    id: series.id,
+                    name: series.name,
+                    poster_path: series.poster_path,
+                    vote_average: series.vote_average,
+                },
+                'series',
+            );
         }
         setIsInWatch(!isInWatch);
     };
