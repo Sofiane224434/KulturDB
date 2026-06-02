@@ -7,6 +7,7 @@ Ce projet est deploye sur le VPS avec l'architecture reelle suivante:
 - Certbot sur l'hote pour le TLS
 - Docker Compose dans ~/apps/cinetech
 - Conteneur accessible uniquement sur 127.0.0.1:3003
+- API auth interne disponible via /api (proxy Nginx conteneur)
 
 ## DNS
 
@@ -34,7 +35,33 @@ Puis renseigner au minimum:
 ```bash
 VITE_TMDB_API_KEY=your_tmdb_api_key
 VITE_TMDB_BASE_URL=https://api.themoviedb.org/3
+VITE_API_BASE_URL=/api
+
+AUTH_JWT_SECRET=change_me
+AUTH_SESSION_SECRET=change_me_too
+AUTH_BASE_URL=https://moviedb.azim404.com
+FRONTEND_BASE_URL=https://moviedb.azim404.com
+
+BREVO_API_KEY=
+BREVO_SENDER_EMAIL=
+BREVO_SENDER_NAME=MovieDB
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+# Optionnel si non standard:
+GOOGLE_CALLBACK_URL=https://moviedb.azim404.com/api/auth/oauth/google/callback
+
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+# Optionnel si non standard:
+GITHUB_CALLBACK_URL=https://moviedb.azim404.com/api/auth/oauth/github/callback
 ```
+
+Notes:
+
+- Si BREVO_API_KEY est vide, les mails de verification ne partent pas.
+- Si GOOGLE_CLIENT_ID/SECRET sont vides, OAuth Google est desactive automatiquement.
+- Si GITHUB_CLIENT_ID/SECRET sont vides, OAuth GitHub est desactive automatiquement.
 
 ## Deploiement manuel de secours
 
@@ -60,3 +87,4 @@ curl -I https://moviedb.azim404.com
 
 - Ne pas reintroduire Traefik, Caddy, Portainer ou un proxy secondaire dans ce repo
 - Ne pas committer de vraie cle API dans .env ou docker-compose.yml
+- Ne pas committer les secrets auth (JWT/OAuth/Brevo)

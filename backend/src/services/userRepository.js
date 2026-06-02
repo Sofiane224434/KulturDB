@@ -1,0 +1,81 @@
+import { db } from '../db.js';
+
+export function findUserByEmail(email) {
+    return db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase());
+}
+
+export function findUserById(id) {
+    return db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+}
+
+export function findUserByOauth(provider, oauthId) {
+    return db
+        .prepare('SELECT * FROM users WHERE provider = ? AND oauth_id = ?')
+        .get(provider, oauthId);
+}
+
+export function createLocalUser({ email, displayName, passwordHash }) {
+    const stmt = db.prepare(
+        `INSERT INTO users (email, display_name, password_hash, provider, email_verified)
+     VALUES (?, ?, ?, 'local', 0)`,
+    );
+    const result = stmt.run(email.toLowerCase(), displayName, passwordHash);
+    return findUserById(result.lastInsertRowid);
+}
+
+export function createOAuthUser({ email, displayName, provider, oauthId, emailVerified }) {
+    const stmt = db.prepare(
+        `INSERT INTO users (email, display_name, provider, oauth_id, email_verified)
+     VALUES (?, ?, ?, ?, ?)`,
+    );
+    const result = stmt.run(
+        email.toLowerCase(),
+        displayName,
+        provider,
+        oauthId,
+        emailVerified ? 1 : 0,
+    );
+    return findUserById(result.lastInsertRowid);
+}
+
+export function updateUserVerification(userId, verified) {
+    db.prepare('UPDATE users SET email_verified = ?, updated_at = datetime(\'now\') WHERE id = ?').run(
+        verified ? 1 : 0,
+        userId,
+    );
+}
+
+export function storeVerificationToken({ userId, token, expiresAt }) {
+    db.prepare(
+        `INSERT INTO email_verification_tokens (user_id, token, expires_at)
+     VALUES (?, ?, ?)`,
+    ).run(userId, token, expiresAt);
+}
+
+export function getValidVerificationToken(token) {
+    return db
+        .prepare(
+            `SELECT t.*, u.email, u.display_name
+       FROM email_verification_tokens t
+       JOIN users u ON u.id = t.user_id
+       WHERE t.token = ? AND t.used_at IS NULL AND datetime(t.expires_at) > datetime('now')`,
+        )
+        .get(token);
+}
+
+export function markVerificationTokenUsed(token) {
+    db
+        .prepare('UPDATE email_verification_tokens SET used_at = datetime(\'now\') WHERE token = ?')
+        .run(token);
+}
+
+export function publicUser(user) {
+    return {
+        id: user.id,
+        email: user.email,
+        displayName: user.display_name,
+        emailVerified: !!user.email_verified,
+        provider: user.provider,
+        createdAt: user.created_at,
+    };
+}

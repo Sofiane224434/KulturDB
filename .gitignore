@@ -31,3 +31,7 @@ dist-ssr
 
 /agent
 /conception/aides
+
+# Backend auth local data
+/backend/data/*.db
+/backend/data/*.db-*
