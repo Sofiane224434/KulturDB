@@ -72,7 +72,9 @@ Variables OAuth GitHub:
 - Bibliotheque/Tops: reclassification automatique des anciens anime stockes par erreur comme series lors du rafraichissement TMDB
 - Bibliotheque/Tops: reclassification anime renforcee via croisement TMDB + Jikan (MyAnimeList) pour eviter les faux `series`
 - Bibliotheque: nombre total d episodes TV corrige avec fusion des sources (TMDB + Jikan, valeur la plus fiable)
+- Ajout/Detail series: resolution anime/episodes renforcee des l ajout (TMDB + Jikan + somme des saisons) pour limiter les cas classes en serie avec un total d episodes faux
 - Tops: ordre manuel possible a l interieur de chaque categorie (monter / descendre)
+- Lisibilite texte amelioree: taille de base augmentee et champs catalogue plus grands
 
 Base lecture via API:
 

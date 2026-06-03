@@ -229,13 +229,13 @@ function MediaCatalogPage({ title, initialLetter, mediaType, loadPage }) {
             value={creditFilter}
             onChange={(event) => updateSearchParams({ creditFilter: event.target.value, page: 1 })}
             placeholder="Filtrer par acteur, realisateur, equipe..."
-            className="px-3 py-2 border-2 border-gray-400 bg-white font-serif text-sm text-gray-700"
+            className="px-4 py-2.5 border-2 border-gray-400 bg-white font-serif text-base text-gray-700"
           />
 
           <select
             value={creditRole}
             onChange={(event) => updateSearchParams({ creditRole: event.target.value, page: 1 })}
-            className="px-3 py-2 border-2 border-gray-400 bg-white font-serif text-sm text-gray-700"
+            className="px-4 py-2.5 border-2 border-gray-400 bg-white font-serif text-base text-gray-700"
           >
             {Object.entries(CREDIT_ROLE_OPTIONS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
@@ -245,7 +245,7 @@ function MediaCatalogPage({ title, initialLetter, mediaType, loadPage }) {
           <select
             value={sort}
             onChange={(event) => updateSearchParams({ sort: event.target.value })}
-            className="px-3 py-2 border-2 border-gray-400 bg-white font-serif text-sm text-gray-700"
+            className="px-4 py-2.5 border-2 border-gray-400 bg-white font-serif text-base text-gray-700"
           >
             {Object.entries(SORT_OPTIONS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
@@ -253,7 +253,7 @@ function MediaCatalogPage({ title, initialLetter, mediaType, loadPage }) {
           </select>
         </section>
 
-        <p className="mb-4 font-serif text-sm text-gray-500">
+        <p className="mb-4 font-serif text-base text-gray-600">
           URL pilotable: utilisez ?page=12, ?sort=rating_desc, ?creditFilter=nom, etc.
         </p>
 

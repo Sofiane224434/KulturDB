@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import MediaCard from '../components/MediaCard';
 import Modal from '../components/Modal';
 import { tmdbService } from '../services/tmdb';
-import { useTopPicks, useComments, useRatings, useLibrary } from '../hooks/useLocalStorage';
+import { resolveSeriesAnimeMetadata, useTopPicks, useComments, useRatings, useLibrary } from '../hooks/useLocalStorage';
 
 function SeriesDetail() {
     const { id } = useParams();
@@ -26,6 +26,7 @@ function SeriesDetail() {
     const [selectedSeason, setSelectedSeason] = useState(null);
     const [seasonDetails, setSeasonDetails] = useState(null);
     const [loadingSeason, setLoadingSeason] = useState(false);
+    const [resolvedMediaType, setResolvedMediaType] = useState('series');
 
     useEffect(() => {
         const fetchSeries = async () => {
@@ -35,8 +36,16 @@ function SeriesDetail() {
                     tmdbService.getSeriesVideos(id)
                 ]);
                 setSeries(seriesData);
-                setIsInTop(isInTopPicks(id, 'series'));
-                setInLibrary(isInLibrary(id, 'series'));
+                const resolved = await resolveSeriesAnimeMetadata({
+                    id,
+                    preferredType: 'series',
+                    title: seriesData?.name,
+                    year: seriesData?.first_air_date ? new Date(seriesData.first_air_date).getFullYear() : null,
+                    details: seriesData,
+                });
+                setResolvedMediaType(resolved.type);
+                setIsInTop(isInTopPicks(id, resolved.type));
+                setInLibrary(isInLibrary(id, resolved.type));
                 setUserRating(getRating(id));
                 setComments(getComments(id));
                 
@@ -59,9 +68,9 @@ function SeriesDetail() {
 
     const handleTopToggle = () => {
         if (isInTop) {
-            removeFromTopPicks(id, 'series');
+            removeFromTopPicks(id, resolvedMediaType);
         } else {
-            addToTopPicks({ id: series.id, title: series.name, poster_path: series.poster_path }, 'series');
+            addToTopPicks({ id: series.id, title: series.name, poster_path: series.poster_path }, resolvedMediaType);
         }
         setIsInTop(!isInTop);
     };
@@ -92,38 +101,68 @@ function SeriesDetail() {
         }
 
         if (inLibrary) {
-            removeFromLibrary(id, 'series');
+            removeFromLibrary(id, resolvedMediaType);
             setInLibrary(false);
             return;
         }
 
-        addToLibrary(
-            {
-                id: series.id,
-                title: series.name,
-                poster_path: series.poster_path,
-                year: series.first_air_date ? new Date(series.first_air_date).getFullYear() : null,
-                source: 'TMDB',
-            },
-            'series',
-            {
-                progressUnit: 'episode',
-                progressTotal: Number.isFinite(series.number_of_episodes) ? series.number_of_episodes : null,
-                episodeRuntimeMinutes: Array.isArray(series.episode_run_time)
-                    ? series.episode_run_time.find((value) => Number.isFinite(value) && value > 0) || null
-                    : null,
-                seasonBreakdown: Array.isArray(series.seasons)
-                    ? series.seasons
-                        .filter((season) => season.season_number > 0 && Number.isFinite(season.episode_count) && season.episode_count > 0)
-                        .map((season) => ({
-                            seasonNumber: season.season_number,
-                            episodeCount: season.episode_count,
-                        }))
-                    : [],
-                metadataSyncedAt: Date.now(),
-            },
-        );
-        setInLibrary(true);
+        resolveSeriesAnimeMetadata({
+            id,
+            preferredType: 'series',
+            title: series.name,
+            year: series.first_air_date ? new Date(series.first_air_date).getFullYear() : null,
+            details: series,
+        })
+            .then((resolved) => {
+                addToLibrary(
+                    {
+                        id: series.id,
+                        title: series.name,
+                        poster_path: series.poster_path,
+                        year: series.first_air_date ? new Date(series.first_air_date).getFullYear() : null,
+                        source: 'TMDB',
+                    },
+                    resolved.type,
+                    {
+                        progressUnit: 'episode',
+                        progressTotal: resolved.progressTotal,
+                        episodeRuntimeMinutes: resolved.episodeRuntimeMinutes,
+                        seasonBreakdown: resolved.seasonBreakdown,
+                        metadataSyncedAt: resolved.metadataSyncedAt,
+                    },
+                );
+                setResolvedMediaType(resolved.type);
+                setInLibrary(true);
+            })
+            .catch(() => {
+                addToLibrary(
+                    {
+                        id: series.id,
+                        title: series.name,
+                        poster_path: series.poster_path,
+                        year: series.first_air_date ? new Date(series.first_air_date).getFullYear() : null,
+                        source: 'TMDB',
+                    },
+                    resolvedMediaType,
+                    {
+                        progressUnit: 'episode',
+                        progressTotal: Number.isFinite(series.number_of_episodes) ? series.number_of_episodes : null,
+                        episodeRuntimeMinutes: Array.isArray(series.episode_run_time)
+                            ? series.episode_run_time.find((value) => Number.isFinite(value) && value > 0) || null
+                            : null,
+                        seasonBreakdown: Array.isArray(series.seasons)
+                            ? series.seasons
+                                .filter((season) => season.season_number > 0 && Number.isFinite(season.episode_count) && season.episode_count > 0)
+                                .map((season) => ({
+                                    seasonNumber: season.season_number,
+                                    episodeCount: season.episode_count,
+                                }))
+                            : [],
+                        metadataSyncedAt: Date.now(),
+                    },
+                );
+                setInLibrary(true);
+            });
     };
 
     const handleSeasonClick = async (season) => {

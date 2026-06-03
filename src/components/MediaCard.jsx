@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { tmdbService } from '../services/tmdb';
-import { useLibrary } from '../hooks/useLocalStorage';
+import { resolveSeriesAnimeMetadata, useLibrary } from '../hooks/useLocalStorage';
 import { useUiPreferences } from '../context/UiPreferencesContext';
 
 // Mapping des genres
@@ -21,7 +21,7 @@ function MediaCard({ item, type }) {
     const title = type === 'movie' ? item.title : item.name;
     const releaseDate = type === 'movie' ? item.release_date : item.first_air_date;
     const releaseYear = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
-    const detailUrl = `/${type}/${item.id}`;
+    const detailUrl = type === 'movie' ? `/movie/${item.id}` : `/series/${item.id}`;
     const [inLibraryState, setInLibraryState] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
     
@@ -29,6 +29,11 @@ function MediaCard({ item, type }) {
     const genres = item.genre_ids?.slice(0, 2).map(id => GENRES[id]).filter(Boolean) || [];
 
     useEffect(() => {
+        if (type === 'series') {
+            setInLibraryState(isInLibrary(item.id, 'series') || isInLibrary(item.id, 'anime'));
+            return;
+        }
+
         setInLibraryState(isInLibrary(item.id, type));
     }, [item.id, isInLibrary, type]);
 
@@ -42,6 +47,7 @@ function MediaCard({ item, type }) {
 
         setIsAdding(true);
 
+        let nextType = type;
         let progressTotal = type === 'movie' ? 1 : null;
         let seasonBreakdown = [];
         let runtimeMinutes = null;
@@ -60,23 +66,17 @@ function MediaCard({ item, type }) {
 
         if (type === 'series' || type === 'anime') {
             try {
-                const details = await tmdbService.getSeriesDetails(item.id);
-                if (Number.isFinite(details?.number_of_episodes) && details.number_of_episodes > 0) {
-                    progressTotal = details.number_of_episodes;
-                }
+                const resolved = await resolveSeriesAnimeMetadata({
+                    id: item.id,
+                    preferredType: type,
+                    title,
+                    year: releaseYear !== 'N/A' ? releaseYear : null,
+                });
 
-                if (Array.isArray(details?.episode_run_time)) {
-                    episodeRuntimeMinutes = details.episode_run_time.find((value) => Number.isFinite(value) && value > 0) || null;
-                }
-
-                if (Array.isArray(details?.seasons)) {
-                    seasonBreakdown = details.seasons
-                        .filter((season) => season.season_number > 0 && Number.isFinite(season.episode_count) && season.episode_count > 0)
-                        .map((season) => ({
-                            seasonNumber: season.season_number,
-                            episodeCount: season.episode_count,
-                        }));
-                }
+                nextType = resolved.type;
+                progressTotal = resolved.progressTotal;
+                seasonBreakdown = resolved.seasonBreakdown;
+                episodeRuntimeMinutes = resolved.episodeRuntimeMinutes;
             } catch (error) {
                 // Fallback silencieux: on conserve un ajout minimal si le détail série échoue.
             }
@@ -91,9 +91,9 @@ function MediaCard({ item, type }) {
                     year: releaseYear !== 'N/A' ? releaseYear : null,
                     source: 'TMDB',
                 },
-                type,
+                nextType,
                 {
-                    progressUnit: type === 'movie' ? 'film' : 'episode',
+                    progressUnit: nextType === 'movie' ? 'film' : 'episode',
                     progressTotal,
                     seasonBreakdown,
                     runtimeMinutes,

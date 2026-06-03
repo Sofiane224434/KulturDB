@@ -122,6 +122,70 @@ async function getAnimeCrossSignal({ title, year, details }) {
   };
 }
 
+function buildSeasonBreakdown(details) {
+  if (!Array.isArray(details?.seasons)) {
+    return [];
+  }
+
+  return details.seasons
+    .filter((season) => season.season_number > 0 && Number.isFinite(season.episode_count) && season.episode_count > 0)
+    .map((season) => ({
+      seasonNumber: season.season_number,
+      episodeCount: season.episode_count,
+    }));
+}
+
+function sumSeasonEpisodes(seasonBreakdown) {
+  return seasonBreakdown.reduce((total, season) => total + (Number.isFinite(season.episodeCount) ? season.episodeCount : 0), 0);
+}
+
+export async function resolveSeriesAnimeMetadata({
+  id,
+  preferredType = 'series',
+  title,
+  year,
+  details,
+}) {
+  const resolvedDetails = details || (id ? await tmdbService.getSeriesDetails(id) : null);
+  if (!resolvedDetails) {
+    return {
+      type: preferredType === 'anime' ? 'anime' : 'series',
+      progressTotal: null,
+      seasonBreakdown: [],
+      episodeRuntimeMinutes: null,
+      metadataSyncedAt: Date.now(),
+    };
+  }
+
+  const seasonBreakdown = buildSeasonBreakdown(resolvedDetails);
+  const tmdbEpisodes = Number.isFinite(resolvedDetails?.number_of_episodes) && resolvedDetails.number_of_episodes > 0
+    ? resolvedDetails.number_of_episodes
+    : null;
+  const seasonEpisodes = sumSeasonEpisodes(seasonBreakdown);
+
+  const crossSignal = await getAnimeCrossSignal({
+    title: title || resolvedDetails?.name || resolvedDetails?.original_name,
+    year: Number.isFinite(year) ? year : getYearFromDate(resolvedDetails?.first_air_date),
+    details: resolvedDetails,
+  });
+
+  const mergedEpisodeTotal = Math.max(
+    tmdbEpisodes || 0,
+    seasonEpisodes || 0,
+    crossSignal.jikanEpisodes || 0,
+  ) || null;
+
+  return {
+    type: preferredType === 'anime' || crossSignal.isAnime ? 'anime' : 'series',
+    progressTotal: mergedEpisodeTotal,
+    seasonBreakdown,
+    episodeRuntimeMinutes: Array.isArray(resolvedDetails?.episode_run_time)
+      ? resolvedDetails.episode_run_time.find((value) => Number.isFinite(value) && value > 0) || null
+      : null,
+    metadataSyncedAt: Date.now(),
+  };
+}
+
 // Hook pour gérer les tops (films, series, anime, manga, etc.)
 export const useTopPicks = () => {
   const TOP_PICKS_KEY = 'kulturdb_top_picks';
@@ -613,38 +677,20 @@ export const useLibrary = () => {
       };
     }
 
-    const details = await tmdbService.getSeriesDetails(item.id);
-    const tmdbEpisodes = Number.isFinite(details?.number_of_episodes) && details.number_of_episodes > 0
-      ? details.number_of_episodes
-      : null;
-
-    const crossSignal = await getAnimeCrossSignal({
-      title: item.title || details?.name || details?.original_name,
-      year: Number.isFinite(item.year) ? item.year : getYearFromDate(details?.first_air_date),
-      details,
+    const resolved = await resolveSeriesAnimeMetadata({
+      id: item.id,
+      preferredType: item.type,
+      title: item.title,
+      year: item.year,
     });
 
-    const mergedEpisodeTotal = Math.max(
-      tmdbEpisodes || 0,
-      crossSignal.jikanEpisodes || 0,
-    ) || null;
-
     return {
-      type: crossSignal.isAnime ? 'anime' : 'series',
-      progressTotal: mergedEpisodeTotal,
-      seasonBreakdown: Array.isArray(details?.seasons)
-        ? details.seasons
-            .filter((season) => season.season_number > 0 && Number.isFinite(season.episode_count) && season.episode_count > 0)
-            .map((season) => ({
-              seasonNumber: season.season_number,
-              episodeCount: season.episode_count,
-            }))
-        : [],
-      episodeRuntimeMinutes: Array.isArray(details?.episode_run_time)
-        ? details.episode_run_time.find((value) => Number.isFinite(value) && value > 0) || null
-        : null,
+      type: resolved.type,
+      progressTotal: resolved.progressTotal,
+      seasonBreakdown: resolved.seasonBreakdown,
+      episodeRuntimeMinutes: resolved.episodeRuntimeMinutes,
       progressUnit: 'episode',
-      metadataSyncedAt: Date.now(),
+      metadataSyncedAt: resolved.metadataSyncedAt,
     };
   };
 
