@@ -1,3 +1,5 @@
+import { tmdbService } from '../services/tmdb';
+
 // Hook pour gérer les tops (films, series, anime, manga, etc.)
 export const useTopPicks = () => {
   const TOP_PICKS_KEY = 'kulturdb_top_picks';
@@ -260,6 +262,7 @@ export const useWatchlist = () => {
 export const useLibrary = () => {
   const LIBRARY_KEY = 'kulturdb_library';
   const LEGACY_WATCHLIST_KEY = 'moviedb_watchlist';
+  const METADATA_TTL_MS = 1000 * 60 * 60 * 6;
 
   const buildDetailPath = (id, type) => {
     if (type === 'movie') {
@@ -288,6 +291,9 @@ export const useLibrary = () => {
       progressCurrent: Number.isFinite(item.progressCurrent) ? item.progressCurrent : 0,
       progressTotal: Number.isFinite(item.progressTotal) ? item.progressTotal : null,
       seasonBreakdown: Array.isArray(item.seasonBreakdown) ? item.seasonBreakdown : [],
+      runtimeMinutes: Number.isFinite(item.runtimeMinutes) ? item.runtimeMinutes : null,
+      episodeRuntimeMinutes: Number.isFinite(item.episodeRuntimeMinutes) ? item.episodeRuntimeMinutes : null,
+      metadataSyncedAt: Number.isFinite(item.metadataSyncedAt) ? item.metadataSyncedAt : null,
       progressUnit: item.progressUnit || 'element',
       notes: item.notes || '',
       source: item.source || null,
@@ -376,11 +382,89 @@ export const useLibrary = () => {
     return saveLibrary(updated);
   };
 
+  const needsMetadataRefresh = (item, force = false) => {
+    if (!item || !['movie', 'series', 'anime'].includes(item.type)) {
+      return false;
+    }
+
+    if (force) {
+      return true;
+    }
+
+    const syncedAt = Number.isFinite(item.metadataSyncedAt) ? item.metadataSyncedAt : 0;
+    const isStale = !syncedAt || Date.now() - syncedAt > METADATA_TTL_MS;
+
+    if (item.type === 'movie') {
+      return isStale || !Number.isFinite(item.runtimeMinutes) || item.runtimeMinutes <= 0;
+    }
+
+    return (
+      isStale ||
+      !Number.isFinite(item.progressTotal) ||
+      item.progressTotal <= 0 ||
+      !Array.isArray(item.seasonBreakdown) ||
+      item.seasonBreakdown.length === 0 ||
+      !Number.isFinite(item.episodeRuntimeMinutes) ||
+      item.episodeRuntimeMinutes <= 0
+    );
+  };
+
+  const fetchMetadataPatch = async (item) => {
+    if (item.type === 'movie') {
+      const details = await tmdbService.getMovieDetails(item.id);
+      return {
+        runtimeMinutes: Number.isFinite(details?.runtime) && details.runtime > 0 ? details.runtime : null,
+        progressTotal: 1,
+        progressUnit: 'film',
+        metadataSyncedAt: Date.now(),
+      };
+    }
+
+    const details = await tmdbService.getSeriesDetails(item.id);
+    return {
+      progressTotal: Number.isFinite(details?.number_of_episodes) && details.number_of_episodes > 0 ? details.number_of_episodes : null,
+      seasonBreakdown: Array.isArray(details?.seasons)
+        ? details.seasons
+            .filter((season) => season.season_number > 0 && Number.isFinite(season.episode_count) && season.episode_count > 0)
+            .map((season) => ({
+              seasonNumber: season.season_number,
+              episodeCount: season.episode_count,
+            }))
+        : [],
+      episodeRuntimeMinutes: Array.isArray(details?.episode_run_time)
+        ? details.episode_run_time.find((value) => Number.isFinite(value) && value > 0) || null
+        : null,
+      progressUnit: 'episode',
+      metadataSyncedAt: Date.now(),
+    };
+  };
+
+  const refreshLibraryMetadata = async ({ force = false } = {}) => {
+    let library = getLibrary();
+    const itemsToRefresh = library.filter((item) => needsMetadataRefresh(item, force));
+
+    if (itemsToRefresh.length === 0) {
+      return library;
+    }
+
+    for (const item of itemsToRefresh) {
+      try {
+        const patch = await fetchMetadataPatch(item);
+        library = updateLibraryItem(item.id, item.type, patch);
+      } catch (_error) {
+        // Ignore TMDB refresh failures to keep the library usable offline/partial.
+      }
+    }
+
+    return library;
+  };
+
   return {
     getLibrary,
     addToLibrary,
     removeFromLibrary,
     updateLibraryItem,
     isInLibrary,
+    refreshLibraryMetadata,
   };
 };

@@ -105,6 +105,8 @@ function MovieDetail() {
             {
                 progressUnit: 'film',
                 progressTotal: 1,
+                runtimeMinutes: Number.isFinite(movie.runtime) ? movie.runtime : null,
+                metadataSyncedAt: Date.now(),
             },
         );
         setInLibrary(true);

@@ -59,6 +59,26 @@ export const authApi = {
 
     oauthProviders: () => request('/auth/oauth/providers'),
 
+    getFriends: () => request('/auth/friends'),
+
+    searchUsers: (query) => request(`/auth/users/search?query=${encodeURIComponent(query || '')}`),
+
+    sendFriendRequest: (userId) =>
+        request('/auth/friends/requests', {
+            method: 'POST',
+            body: JSON.stringify({ userId }),
+        }),
+
+    acceptFriendRequest: (requestId) =>
+        request(`/auth/friends/requests/${requestId}/accept`, {
+            method: 'POST',
+        }),
+
+    removeFriend: (userId) =>
+        request(`/auth/friends/${userId}`, {
+            method: 'DELETE',
+        }),
+
     getGoogleOAuthUrl: (redirectPath = '/') =>
         `${API_BASE}/auth/oauth/google?redirect=${encodeURIComponent(redirectPath)}`,
     getGithubOAuthUrl: (redirectPath = '/') =>

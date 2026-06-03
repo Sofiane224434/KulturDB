@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLibrary } from '../hooks/useLocalStorage';
+import { useUiPreferences } from '../context/UiPreferencesContext';
 
 function ReadingCard({ item }) {
   const { isInLibrary, addToLibrary } = useLibrary();
+  const { preferences } = useUiPreferences();
   const detailPath = item.type === 'roman' ? `/reading/roman/${item.id}` : `/reading/${item.type}/${item.id}`;
   const [inLibraryState, setInLibraryState] = useState(false);
 
@@ -44,7 +46,7 @@ function ReadingCard({ item }) {
         <img
           src={item.image}
           alt={item.title}
-          className="w-full aspect-2/3 object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+          className={`w-full aspect-2/3 object-cover transition-all duration-500 ${preferences.showCardColors ? 'group-hover:scale-[1.01]' : 'grayscale group-hover:grayscale-0'}`}
           loading="lazy"
         />
       ) : (

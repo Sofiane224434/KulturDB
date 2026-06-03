@@ -135,3 +135,143 @@ export function publicUser(user) {
         createdAt: user.created_at,
     };
 }
+
+export function searchUsers(query, currentUserId, limit = 20) {
+    const normalizedQuery = `%${String(query || '').trim().toLowerCase()}%`;
+    return db
+        .prepare(
+            `SELECT
+                u.id,
+                u.email,
+                u.display_name,
+                u.provider,
+                u.created_at,
+                f.id AS friendship_id,
+                f.requester_id,
+                f.addressee_id,
+                f.status AS friendship_status
+             FROM users u
+             LEFT JOIN friendships f
+               ON (
+                    (f.requester_id = @currentUserId AND f.addressee_id = u.id)
+                 OR (f.requester_id = u.id AND f.addressee_id = @currentUserId)
+               )
+             WHERE u.id <> @currentUserId
+               AND u.email_verified = 1
+               AND (
+                    lower(u.display_name) LIKE @query
+                 OR lower(u.email) LIKE @query
+               )
+             ORDER BY lower(u.display_name) ASC
+             LIMIT @limit`,
+        )
+        .all({
+            currentUserId,
+            query: normalizedQuery,
+            limit,
+        });
+}
+
+export function findFriendshipBetweenUsers(userId, otherUserId) {
+    return db
+        .prepare(
+            `SELECT *
+             FROM friendships
+             WHERE (requester_id = ? AND addressee_id = ?)
+                OR (requester_id = ? AND addressee_id = ?)`,
+        )
+        .get(userId, otherUserId, otherUserId, userId);
+}
+
+export function createFriendRequest(requesterId, addresseeId) {
+    const result = db
+        .prepare(
+            `INSERT INTO friendships (requester_id, addressee_id, status)
+             VALUES (?, ?, 'pending')`,
+        )
+        .run(requesterId, addresseeId);
+
+    return db.prepare('SELECT * FROM friendships WHERE id = ?').get(result.lastInsertRowid);
+}
+
+export function acceptFriendRequest(requestId, userId) {
+    db.prepare(
+        `UPDATE friendships
+         SET status = 'accepted', updated_at = datetime('now')
+         WHERE id = ? AND addressee_id = ? AND status = 'pending'`,
+    ).run(requestId, userId);
+
+    return db.prepare('SELECT * FROM friendships WHERE id = ?').get(requestId);
+}
+
+export function deleteFriendshipBetweenUsers(userId, otherUserId) {
+    return db
+        .prepare(
+            `DELETE FROM friendships
+             WHERE (requester_id = ? AND addressee_id = ?)
+                OR (requester_id = ? AND addressee_id = ?)`,
+        )
+        .run(userId, otherUserId, otherUserId, userId);
+}
+
+export function listFriendsForUser(userId) {
+    return db
+        .prepare(
+            `SELECT
+                u.id,
+                u.email,
+                u.display_name,
+                u.provider,
+                u.created_at,
+                f.id AS request_id,
+                f.updated_at
+             FROM friendships f
+             JOIN users u
+               ON u.id = CASE
+                    WHEN f.requester_id = @userId THEN f.addressee_id
+                    ELSE f.requester_id
+               END
+             WHERE (f.requester_id = @userId OR f.addressee_id = @userId)
+               AND f.status = 'accepted'
+             ORDER BY lower(u.display_name) ASC`,
+        )
+        .all({ userId });
+}
+
+export function listIncomingFriendRequests(userId) {
+    return db
+        .prepare(
+            `SELECT
+                f.id AS request_id,
+                u.id,
+                u.email,
+                u.display_name,
+                u.provider,
+                f.created_at
+             FROM friendships f
+             JOIN users u ON u.id = f.requester_id
+             WHERE f.addressee_id = ?
+               AND f.status = 'pending'
+             ORDER BY datetime(f.created_at) DESC`,
+        )
+        .all(userId);
+}
+
+export function listOutgoingFriendRequests(userId) {
+    return db
+        .prepare(
+            `SELECT
+                f.id AS request_id,
+                u.id,
+                u.email,
+                u.display_name,
+                u.provider,
+                f.created_at
+             FROM friendships f
+             JOIN users u ON u.id = f.addressee_id
+             WHERE f.requester_id = ?
+               AND f.status = 'pending'
+             ORDER BY datetime(f.created_at) DESC`,
+        )
+        .all(userId);
+}

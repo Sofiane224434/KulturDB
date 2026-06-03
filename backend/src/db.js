@@ -45,8 +45,24 @@ db.exec(`
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS friendships (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    requester_id INTEGER NOT NULL,
+    addressee_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK (requester_id <> addressee_id),
+    UNIQUE(requester_id, addressee_id),
+    FOREIGN KEY (requester_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (addressee_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   CREATE INDEX IF NOT EXISTS idx_tokens_token ON email_verification_tokens(token);
   CREATE INDEX IF NOT EXISTS idx_pending_email ON pending_registrations(email);
   CREATE INDEX IF NOT EXISTS idx_pending_token ON pending_registrations(token);
+  CREATE INDEX IF NOT EXISTS idx_friendships_requester ON friendships(requester_id);
+  CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id);
+  CREATE INDEX IF NOT EXISTS idx_friendships_status ON friendships(status);
 `);

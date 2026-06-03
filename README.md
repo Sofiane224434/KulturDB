@@ -60,10 +60,11 @@ Variables OAuth GitHub:
 - Barre de recherche: filtres disponibles pour films, series, anime, manga, manwha, light novel et roman
 - Bibliotheque publique active: /library (suivi visionnage/lecture sans login)
 - Bibliotheque: statuts (a commencer, en cours, a reprendre, termine), progression bornee au total existant, mapping saison/episode pour series/anime, et pas de progression chiffree pour les films
+- Bibliotheque: rafraichissement periodique des metadonnees TMDB (episodes, saisons, durees) pour garder les compteurs plus a jour
 - Bibliotheque: recherche par titre + filtres type/statut
 - Tops personnels visibles dans /library (top films, top series, top anime, top manga, etc.), avec gestion locale via le stockage navigateur
 - Alias legacy conserve: /watchlist redirige vers /library
-- Profil: pseudo modifiable depuis /profile (compte connecte)
+- Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, et gestion d amis depuis /profile (compte connecte)
 
 Base lecture via API:
 
@@ -90,6 +91,11 @@ Routes API auth:
 - POST /api/auth/login
 - GET /api/auth/me
 - PATCH /api/auth/me/display-name
+- GET /api/auth/users/search?query=...
+- GET /api/auth/friends
+- POST /api/auth/friends/requests
+- POST /api/auth/friends/requests/:requestId/accept
+- DELETE /api/auth/friends/:userId
 - POST /api/auth/resend-verification
 - POST /api/auth/verify-email
 - GET /api/auth/oauth/providers

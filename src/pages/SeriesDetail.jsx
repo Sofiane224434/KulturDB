@@ -109,6 +109,9 @@ function SeriesDetail() {
             {
                 progressUnit: 'episode',
                 progressTotal: Number.isFinite(series.number_of_episodes) ? series.number_of_episodes : null,
+                episodeRuntimeMinutes: Array.isArray(series.episode_run_time)
+                    ? series.episode_run_time.find((value) => Number.isFinite(value) && value > 0) || null
+                    : null,
                 seasonBreakdown: Array.isArray(series.seasons)
                     ? series.seasons
                         .filter((season) => season.season_number > 0 && Number.isFinite(season.episode_count) && season.episode_count > 0)
@@ -117,6 +120,7 @@ function SeriesDetail() {
                             episodeCount: season.episode_count,
                         }))
                     : [],
+                metadataSyncedAt: Date.now(),
             },
         );
         setInLibrary(true);

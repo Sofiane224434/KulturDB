@@ -4,13 +4,21 @@ import passport from 'passport';
 import { config } from '../utils/config.js';
 import { requireAuth } from '../utils/authMiddleware.js';
 import {
+    acceptFriendRequest,
     createLocalUser,
+    createFriendRequest,
+    deleteFriendshipBetweenUsers,
+    findFriendshipBetweenUsers,
     findUserByEmail,
     findUserById,
     findPendingByEmail,
     getValidPendingRegistrationToken,
     markPendingRegistrationUsed,
+    listFriendsForUser,
+    listIncomingFriendRequests,
+    listOutgoingFriendRequests,
     publicUser,
+    searchUsers,
     storeVerificationToken,
     upsertPendingRegistration,
     getValidVerificationToken,
@@ -48,6 +56,41 @@ function getSafeRedirectPath(value) {
         return '/';
     }
     return value;
+}
+
+function toFriendRelation(currentUserId, row) {
+    let relationship = 'none';
+
+    if (row.friendship_id) {
+        if (row.friendship_status === 'accepted') {
+            relationship = 'friend';
+        } else if (row.requester_id === currentUserId) {
+            relationship = 'outgoing';
+        } else {
+            relationship = 'incoming';
+        }
+    }
+
+    return {
+        id: row.id,
+        email: row.email,
+        displayName: row.display_name,
+        provider: row.provider,
+        createdAt: row.created_at,
+        relationship,
+        requestId: row.friendship_id || null,
+    };
+}
+
+function toFriendListItem(row) {
+    return {
+        id: row.id,
+        email: row.email,
+        displayName: row.display_name,
+        provider: row.provider,
+        createdAt: row.created_at,
+        requestId: row.request_id || null,
+    };
 }
 
 router.post('/register', async (req, res) => {
@@ -129,6 +172,85 @@ router.post('/login', async (req, res) => {
 
 router.get('/me', requireAuth, (req, res) => {
     return res.json({ user: req.user });
+});
+
+router.get('/users/search', requireAuth, (req, res) => {
+    const query = String(req.query?.query || '').trim();
+    if (query.length < 2) {
+        return res.json({ users: [] });
+    }
+
+    const users = searchUsers(query, req.user.id).map((row) => toFriendRelation(req.user.id, row));
+    return res.json({ users });
+});
+
+router.get('/friends', requireAuth, (req, res) => {
+    return res.json({
+        friends: listFriendsForUser(req.user.id).map(toFriendListItem),
+        incomingRequests: listIncomingFriendRequests(req.user.id).map(toFriendListItem),
+        outgoingRequests: listOutgoingFriendRequests(req.user.id).map(toFriendListItem),
+    });
+});
+
+router.post('/friends/requests', requireAuth, (req, res) => {
+    const targetUserId = Number(req.body?.userId);
+    if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+        return res.status(400).json({ message: 'Utilisateur cible invalide.' });
+    }
+
+    if (targetUserId === req.user.id) {
+        return res.status(400).json({ message: 'Tu ne peux pas t ajouter toi-meme.' });
+    }
+
+    const targetUser = findUserById(targetUserId);
+    if (!targetUser || !targetUser.email_verified) {
+        return res.status(404).json({ message: 'Utilisateur introuvable.' });
+    }
+
+    const existing = findFriendshipBetweenUsers(req.user.id, targetUserId);
+    if (existing?.status === 'accepted') {
+        return res.status(409).json({ message: 'Vous etes deja amis.' });
+    }
+
+    if (existing?.status === 'pending') {
+        if (existing.requester_id === targetUserId && existing.addressee_id === req.user.id) {
+            acceptFriendRequest(existing.id, req.user.id);
+            return res.json({ message: 'Demande acceptee automatiquement.' });
+        }
+
+        return res.status(409).json({ message: 'Une demande est deja en cours.' });
+    }
+
+    createFriendRequest(req.user.id, targetUserId);
+    return res.status(201).json({ message: 'Demande d ami envoyee.' });
+});
+
+router.post('/friends/requests/:requestId/accept', requireAuth, (req, res) => {
+    const requestId = Number(req.params.requestId);
+    if (!Number.isInteger(requestId) || requestId <= 0) {
+        return res.status(400).json({ message: 'Demande invalide.' });
+    }
+
+    const accepted = acceptFriendRequest(requestId, req.user.id);
+    if (!accepted || accepted.status !== 'accepted') {
+        return res.status(404).json({ message: 'Demande introuvable.' });
+    }
+
+    return res.json({ message: 'Demande acceptee.' });
+});
+
+router.delete('/friends/:userId', requireAuth, (req, res) => {
+    const targetUserId = Number(req.params.userId);
+    if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+        return res.status(400).json({ message: 'Utilisateur invalide.' });
+    }
+
+    const result = deleteFriendshipBetweenUsers(req.user.id, targetUserId);
+    if (!result.changes) {
+        return res.status(404).json({ message: 'Relation introuvable.' });
+    }
+
+    return res.json({ message: 'Relation supprimee.' });
 });
 
 router.patch('/me/display-name', requireAuth, (req, res) => {

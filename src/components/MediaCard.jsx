@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { tmdbService } from '../services/tmdb';
 import { useLibrary } from '../hooks/useLocalStorage';
+import { useUiPreferences } from '../context/UiPreferencesContext';
 
 // Mapping des genres
 const GENRES = {
@@ -15,6 +16,7 @@ const GENRES = {
 
 function MediaCard({ item, type }) {
     const { isInLibrary, addToLibrary } = useLibrary();
+    const { preferences } = useUiPreferences();
     const posterUrl = tmdbService.getImageUrl(item.poster_path, 'w342');
     const title = type === 'movie' ? item.title : item.name;
     const releaseDate = type === 'movie' ? item.release_date : item.first_air_date;
@@ -42,12 +44,29 @@ function MediaCard({ item, type }) {
 
         let progressTotal = type === 'movie' ? 1 : null;
         let seasonBreakdown = [];
+        let runtimeMinutes = null;
+        let episodeRuntimeMinutes = null;
+
+        if (type === 'movie') {
+            try {
+                const details = await tmdbService.getMovieDetails(item.id);
+                if (Number.isFinite(details?.runtime) && details.runtime > 0) {
+                    runtimeMinutes = details.runtime;
+                }
+            } catch (_error) {
+                // Fallback silencieux: l'ajout reste possible sans duree exacte.
+            }
+        }
 
         if (type === 'series' || type === 'anime') {
             try {
                 const details = await tmdbService.getSeriesDetails(item.id);
                 if (Number.isFinite(details?.number_of_episodes) && details.number_of_episodes > 0) {
                     progressTotal = details.number_of_episodes;
+                }
+
+                if (Array.isArray(details?.episode_run_time)) {
+                    episodeRuntimeMinutes = details.episode_run_time.find((value) => Number.isFinite(value) && value > 0) || null;
                 }
 
                 if (Array.isArray(details?.seasons)) {
@@ -77,6 +96,9 @@ function MediaCard({ item, type }) {
                     progressUnit: type === 'movie' ? 'film' : 'episode',
                     progressTotal,
                     seasonBreakdown,
+                    runtimeMinutes,
+                    episodeRuntimeMinutes,
+                    metadataSyncedAt: Date.now(),
                 },
             );
             setInLibraryState(true);
@@ -94,7 +116,7 @@ function MediaCard({ item, type }) {
                         <img 
                             src={posterUrl} 
                             alt={title}
-                            className="w-full aspect-2/3 object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                            className={`w-full aspect-2/3 object-cover transition-all duration-500 ${preferences.showCardColors ? 'group-hover:scale-[1.01]' : 'grayscale group-hover:grayscale-0'}`}
                         />
                     ) : (
                         <div className="w-full aspect-2/3 bg-gray-900 flex items-center justify-center">

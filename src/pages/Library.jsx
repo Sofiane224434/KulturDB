@@ -48,7 +48,7 @@ const getSeasonPosition = (progressCurrent, seasonBreakdown = []) => {
 };
 
 function Library() {
-  const { getLibrary, removeFromLibrary, updateLibraryItem } = useLibrary();
+  const { getLibrary, removeFromLibrary, updateLibraryItem, refreshLibraryMetadata } = useLibrary();
   const { getTopPicks, removeFromTopPicks } = useTopPicks();
   const [items, setItems] = useState([]);
   const [topPicks, setTopPicks] = useState([]);
@@ -61,50 +61,13 @@ function Library() {
     setItems(initialLibrary);
     setTopPicks(getTopPicks());
 
-    const entriesToHydrate = initialLibrary.filter((entry) =>
-      (entry.type === 'series' || entry.type === 'anime') &&
-      (!Number.isFinite(entry.progressTotal) || entry.progressTotal <= 0 || !Array.isArray(entry.seasonBreakdown) || entry.seasonBreakdown.length === 0),
-    );
-
-    if (entriesToHydrate.length === 0) {
-      return;
-    }
-
     let cancelled = false;
 
-    const hydrateSeriesMetadata = async () => {
-      for (const entry of entriesToHydrate) {
-        try {
-          const details = await tmdbService.getSeriesDetails(entry.id);
-          const patch = {};
-
-          if (Number.isFinite(details?.number_of_episodes) && details.number_of_episodes > 0) {
-            patch.progressTotal = details.number_of_episodes;
-          }
-
-          if (Array.isArray(details?.seasons)) {
-            patch.seasonBreakdown = details.seasons
-              .filter((season) => season.season_number > 0 && Number.isFinite(season.episode_count) && season.episode_count > 0)
-              .map((season) => ({
-                seasonNumber: season.season_number,
-                episodeCount: season.episode_count,
-              }));
-          }
-
-          if (Object.keys(patch).length > 0) {
-            updateLibraryItem(entry.id, entry.type, patch);
-          }
-        } catch (error) {
-          // Ignore silently; library still works with partial metadata.
-        }
-      }
-
+    refreshLibraryMetadata().then((updatedItems) => {
       if (!cancelled) {
-        setItems(getLibrary());
+        setItems(updatedItems);
       }
-    };
-
-    hydrateSeriesMetadata();
+    });
 
     return () => {
       cancelled = true;
