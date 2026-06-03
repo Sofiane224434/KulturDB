@@ -44,7 +44,7 @@ function ReadingDetail() {
           const [charsData, recData, mdxSupplement] = await Promise.all([
             readingApi.getJikanCharacters(id),
             readingApi.getJikanRecommendations(id),
-            readingApi.getMangaDexSupplementByTitles(titleCandidates).catch(() => null),
+            readingApi.getMangaDexSupplementByTitles(titleCandidates, id).catch(() => null),
           ]);
 
           const frSynopsis = mdxSupplement?.descriptionFr

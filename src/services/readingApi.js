@@ -172,7 +172,7 @@ export const readingApi = {
     };
   },
 
-  async getMangaDexSupplementByTitles(titles = []) {
+  async getMangaDexSupplementByTitles(titles = [], malId = null) {
     const cleanedTitles = (titles || []).map((title) => String(title || '').trim()).filter(Boolean);
     if (cleanedTitles.length === 0) {
       return null;
@@ -180,6 +180,9 @@ export const readingApi = {
 
     const params = new URLSearchParams();
     cleanedTitles.slice(0, 5).forEach((title) => params.append('title', title));
+    if (malId) {
+      params.append('malId', String(malId));
+    }
 
     try {
       const response = await fetch(`${API_BASE}/reading/mangadex/supplement?${params.toString()}`);

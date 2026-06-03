@@ -44,6 +44,7 @@ const pickMangaDexDescription = (description = {}) => {
 router.get('/mangadex/supplement', async (req, res) => {
     try {
         const queryTitles = req.query.title;
+        const malId = String(req.query.malId || '').trim();
         const rawTitles = Array.isArray(queryTitles) ? queryTitles : [queryTitles];
         const titles = rawTitles.map((title) => String(title || '').trim()).filter(Boolean);
 
@@ -62,6 +63,14 @@ router.get('/mangadex/supplement', async (req, res) => {
 
             if (entries.length === 0) {
                 continue;
+            }
+
+            if (malId) {
+                const byMalId = entries.find((entry) => String(entry?.attributes?.links?.mal || '') === malId);
+                if (byMalId) {
+                    selected = byMalId;
+                    break;
+                }
             }
 
             const normalizedTitle = normalizeText(title);
