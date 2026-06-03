@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { tmdbService } from '../services/tmdb';
 import { useLibrary } from '../hooks/useLocalStorage';
+import MediaCard from '../components/MediaCard';
+import { useFavorites } from '../hooks/useLocalStorage';
 
 const STATUS_LABELS = {
   to_start: 'A commencer',
@@ -21,12 +23,15 @@ const TYPE_LABELS = {
 
 function Library() {
   const { getLibrary, removeFromLibrary, updateLibraryItem } = useLibrary();
+  const { getFavorites, removeFavorite } = useFavorites();
   const [items, setItems] = useState([]);
+  const [favorites, setFavorites] = useState([]);
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => {
     setItems(getLibrary());
+    setFavorites(getFavorites());
   }, []);
 
   const filteredItems = useMemo(() => {
@@ -58,7 +63,12 @@ function Library() {
     return unique;
   }, [items]);
 
-  if (items.length === 0) {
+  const handleFavoriteRemove = (id) => {
+    const updated = removeFavorite(id);
+    setFavorites(updated);
+  };
+
+  if (items.length === 0 && favorites.length === 0) {
     return (
       <div className="vintage-frame">
         <div className="vintage-frame-top"></div>
@@ -85,6 +95,31 @@ function Library() {
       <div className="vintage-frame-top"></div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-8 md:py-12">
+        {favorites.length > 0 && (
+          <section className="mb-10 md:mb-12">
+            <header className="mb-5">
+              <h2 className="text-3xl sm:text-4xl font-display uppercase tracking-wider text-gray-600 mb-2">
+                Favoris
+              </h2>
+              <p className="font-serif text-gray-600">Vos contenus préférés conservés à côté du suivi de lecture et visionnage.</p>
+            </header>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8">
+              {favorites.map((item) => (
+                <div key={item.id} className="relative group">
+                  <MediaCard item={item} type={item.type} />
+                  <button
+                    onClick={() => handleFavoriteRemove(item.id)}
+                    className="absolute top-2 right-2 bg-black text-white px-3 py-1 text-sm font-display uppercase opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity border border-white"
+                  >
+                    Retirer
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <header className="mb-8 md:mb-10">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-display uppercase tracking-wider text-gray-600 mb-3">
             Ma Bibliotheque

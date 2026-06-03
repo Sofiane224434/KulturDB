@@ -54,10 +54,10 @@ Variables OAuth GitHub:
 - Connexion locale (JWT)
 - OAuth Google (si variables Google configurees)
 - OAuth GitHub (si variables GitHub configurees)
-- Route privee protegee: /favorites (redirection auto vers /login)
-- Route profil protegee: /profile (infos compte et raccourcis vers la bibliotheque)
+- Route legacy conservee: /favorites redirige vers /library
 - Routes lecture publiques: /manga, /manwha, /light-novels, /romans
 - Bibliotheque publique active: /library (suivi visionnage/lecture sans login)
+- Favoris visibles dans /library, avec gestion locale via le stockage navigateur
 - Alias legacy conserve: /watchlist redirige vers /library
 
 Base lecture via API:
@@ -74,6 +74,7 @@ Routes frontend ajoutees:
 
 - /login
 - /register
+- /profile
 - /auth/verify-email?token=...
 - /auth/oauth-success?token=...
 

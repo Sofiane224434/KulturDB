@@ -15,7 +15,6 @@ import ReadingPersonDetail from './pages/ReadingPersonDetail';
 import MovieDetail from './pages/MovieDetail';
 import SeriesDetail from './pages/SeriesDetail';
 import PersonDetail from './pages/PersonDetail';
-import Favorites from './pages/Favorites';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
@@ -31,12 +30,9 @@ function TopAuthActions() {
     if (isAuthenticated) {
         return (
             <div className="flex items-center justify-end gap-3 px-4 pt-4 pb-2 md:px-8">
-                <Link
-                    to="/profile"
-                    className="hidden sm:inline text-xs md:text-sm font-serif text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                    Mon profil: <span className="text-gray-900">{user?.displayName || user?.email}</span>
-                </Link>
+                <span className="hidden sm:inline text-xs md:text-sm font-serif text-gray-600">
+                    Connecté: <span className="text-gray-900">{user?.displayName || user?.email}</span>
+                </span>
                 <button
                     onClick={() => {
                         logout();
@@ -89,24 +85,10 @@ function App() {
                             <Route path="/movie/:id" element={<MovieDetail />} />
                             <Route path="/series/:id" element={<SeriesDetail />} />
                             <Route path="/person/:id" element={<PersonDetail />} />
-                            <Route
-                                path="/favorites"
-                                element={
-                                    <ProtectedRoute>
-                                        <Favorites />
-                                    </ProtectedRoute>
-                                }
-                            />
+                            <Route path="/favorites" element={<Navigate to="/library" replace />} />
                             <Route path="/watchlist" element={<Navigate to="/library" replace />} />
                             <Route path="/library" element={<Library />} />
-                            <Route
-                                path="/profile"
-                                element={
-                                    <ProtectedRoute>
-                                        <Profile />
-                                    </ProtectedRoute>
-                                }
-                            />
+                            <Route path="/profile" element={<Profile />} />
                             <Route path="/login" element={<Login />} />
                             <Route path="/register" element={<Register />} />
                             <Route path="/auth/verify-email" element={<VerifyEmail />} />

@@ -118,7 +118,7 @@ function Header() {
                             Mangas
                         </Link>
                         <Link to="/profile" className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
-                            Profil
+                            Mon profil
                         </Link>
                     </nav>
 
@@ -240,7 +240,7 @@ function Header() {
                             Mangas
                         </Link>
                         <Link to="/profile" onClick={() => setShowMobileMenu(false)} className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
-                            Profil
+                            Mon profil
                         </Link>
                     </nav>
                 )}
