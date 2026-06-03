@@ -98,7 +98,7 @@ function Header() {
             <div className="max-w-7xl mx-auto px-6 py-4">
                 <div className="flex items-center justify-between gap-8">
                     <Link to="/" className="font-display text-3xl uppercase tracking-widest text-gray-400 hover:text-gray-300 transition-colors">
-                        <span className="text-4xl">M</span>ovie<span className="text-4xl">D</span><span className="text-4xl">B</span>
+                        <span className="text-4xl">K</span>ultur<span className="text-4xl">D</span><span className="text-4xl">B</span>
                     </Link>
 
                     <nav className="hidden md:flex gap-6">
@@ -115,7 +115,7 @@ function Header() {
                             Anime
                         </Link>
                         <Link to="/library" className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
-                            Médiathèque
+                            Bibliothèque
                         </Link>
                         <Link to="/favorites" className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
                             Favoris
@@ -237,7 +237,7 @@ function Header() {
                             Anime
                         </Link>
                         <Link to="/library" onClick={() => setShowMobileMenu(false)} className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
-                            Médiathèque
+                            Bibliothèque
                         </Link>
                         <Link to="/favorites" onClick={() => setShowMobileMenu(false)} className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
                             Favoris

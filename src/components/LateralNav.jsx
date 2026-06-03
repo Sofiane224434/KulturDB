@@ -32,7 +32,7 @@ function LateralNav() {
         { name: 'Films', path: '/movies' },
         { name: 'Séries', path: '/series' },
         { name: 'Anime', path: '/anime' },
-        { name: 'Médiathèque', path: '/library' },
+        { name: 'Bibliothèque', path: '/library' },
         { name: 'Mangas', path: '/library?type=manga' },
         { name: 'Manwha', path: '/library?type=manwha' },
         { name: 'Light Novels', path: '/library?type=light_novel' },
@@ -129,7 +129,7 @@ function LateralNav() {
             <div className="md:hidden sticky top-0 z-40 bg-black border-b border-gray-800 flex items-center justify-between px-4 py-3 order-1">
                 <Link to="/" className="flex items-center gap-2">
                     <span className="flex items-center justify-center w-9 h-9 bg-white rounded-lg shadow-md">
-                        <span className="font-display font-bold text-2xl leading-none text-black">M</span>
+                        <span className="font-display font-bold text-2xl leading-none text-black">K</span>
                     </span>
                     <span className="text-lg font-bold text-gray-300 tracking-widest font-display">
                         ULTUR<span className="text-xl">DB</span>
@@ -175,7 +175,7 @@ function LateralNav() {
                     <Link to="/">
                         <div className="p-4 flex flex-col items-center gap-3 cursor-pointer group">
                             <span className="flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-lg group-hover:scale-105 transition-transform">
-                                <span className="font-display font-bold text-6xl leading-none text-black">M</span>
+                                <span className="font-display font-bold text-6xl leading-none text-black">K</span>
                             </span>
                             <h3 className="text-2xl font-bold text-gray-400 tracking-widest font-display underline decoration-gray-600 decoration-2 underline-offset-4 group-hover:text-gray-300 transition-colors text-center">
                                 <span className="text-3xl">K</span>ULTUR<span className="text-3xl">D</span><span className="text-3xl">B</span>

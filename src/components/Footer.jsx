@@ -33,7 +33,7 @@ function Footer() {
                     <div>
                         <h4 className="font-display uppercase tracking-widest text-gray-700 mb-6 text-sm border-b border-gray-300 pb-2 inline-block">Ma Collection</h4>
                         <ul className="space-y-3 text-sm text-gray-600 font-serif">
-                            <li><Link to="/library" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Médiathèque</Link></li>
+                            <li><Link to="/library" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Bibliothèque</Link></li>
                             <li><Link to="/favorites" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Favoris</Link></li>
                         </ul>
                     </div>

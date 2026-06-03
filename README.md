@@ -55,9 +55,9 @@ Variables OAuth GitHub:
 - OAuth Google (si variables Google configurees)
 - OAuth GitHub (si variables GitHub configurees)
 - Route privee protegee: /favorites (redirection auto vers /login)
-- Mediatheque publique: /library (alias maintenu: /watchlist)
+- Bibliotheque publique: /library (alias maintenu: /watchlist)
 
-Mediatheque avancee:
+Bibliotheque avancee:
 
 - Suivi du statut: a voir/lire, en cours, deja vu/lu, revoir/relire
 - Suivi progression: episode/chapitre/tome/page + current/total
