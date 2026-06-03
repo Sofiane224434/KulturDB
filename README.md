@@ -77,6 +77,9 @@ Variables OAuth GitHub:
 - Bibliotheque/Tops: reclassification anime renforcee via croisement TMDB + Jikan (MyAnimeList) pour eviter les faux `series`
 - Bibliotheque: nombre total d episodes TV corrige avec fusion des sources (TMDB + somme des saisons + Jikan + AniList + Kitsu, valeur la plus fiable)
 - Cas specifiques verrouilles: Inazuma Eleven GO Chrono Stone (51) et Inazuma Eleven GO Galaxy (43) forces en `anime` avec total exact
+- Fiche detail serie/anime: affichage episodes/saisons aligne sur la resolution multi-sources pour limiter les faux `1 episode`
+- Titres medias: affichage nettoye pour eviter les caracteres japonais/coreens dans les titres visibles (fallback latin)
+- Catalogue anime: source elargie (TMDB origin country JP + original language ja) pour couvrir davantage de series anime
 - Ajout/Detail series: resolution anime/episodes renforcee des l ajout (TMDB + Jikan + somme des saisons) pour limiter les cas classes en serie avec un total d episodes faux
 - Tops: ordre manuel possible a l interieur de chaque categorie (monter / descendre)
 - Lisibilite texte amelioree: taille de base augmentee et champs catalogue plus grands

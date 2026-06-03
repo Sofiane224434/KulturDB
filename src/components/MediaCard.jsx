@@ -18,7 +18,7 @@ function MediaCard({ item, type }) {
     const { isInLibrary, addToLibrary } = useLibrary();
     const { preferences } = useUiPreferences();
     const posterUrl = tmdbService.getImageUrl(item.poster_path, 'w342');
-    const title = type === 'movie' ? item.title : item.name;
+    const title = tmdbService.getMediaTitle(item, type);
     const releaseDate = type === 'movie' ? item.release_date : item.first_air_date;
     const releaseYear = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
     const detailUrl = type === 'movie' ? `/movie/${item.id}` : `/series/${item.id}`;

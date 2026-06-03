@@ -18,6 +18,71 @@ const TV_SORT_MAP = {
   alpha_desc: 'name.desc',
 };
 
+const BLOCKED_TITLE_CHARS_REGEX = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af]/;
+
+function normalizeTitleValue(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function hasBlockedTitleChars(value) {
+  return BLOCKED_TITLE_CHARS_REGEX.test(String(value || ''));
+}
+
+function stripBlockedTitleChars(value) {
+  return normalizeTitleValue(String(value || '').replace(BLOCKED_TITLE_CHARS_REGEX, ''));
+}
+
+function getSafeDisplayTitle(...candidates) {
+  for (const candidate of candidates) {
+    const normalized = normalizeTitleValue(candidate);
+    if (!normalized) {
+      continue;
+    }
+
+    if (!hasBlockedTitleChars(normalized)) {
+      return normalized;
+    }
+  }
+
+  for (const candidate of candidates) {
+    const stripped = stripBlockedTitleChars(candidate);
+    if (stripped) {
+      return stripped;
+    }
+  }
+
+  return 'Titre indisponible';
+}
+
+function sortAnimeResults(results, sortKey = 'popularity') {
+  const list = [...results];
+
+  list.sort((left, right) => {
+    if (sortKey === 'rating_desc') {
+      return (right.vote_average || 0) - (left.vote_average || 0);
+    }
+
+    if (sortKey === 'rating_asc') {
+      return (left.vote_average || 0) - (right.vote_average || 0);
+    }
+
+    const leftTitle = getSafeDisplayTitle(left?.name, left?.original_name);
+    const rightTitle = getSafeDisplayTitle(right?.name, right?.original_name);
+
+    if (sortKey === 'alpha_asc') {
+      return leftTitle.localeCompare(rightTitle, 'fr');
+    }
+
+    if (sortKey === 'alpha_desc') {
+      return rightTitle.localeCompare(leftTitle, 'fr');
+    }
+
+    return (right.popularity || 0) - (left.popularity || 0);
+  });
+
+  return list;
+}
+
 function resolveSortBy(sortKey, mediaType = 'tv') {
   const map = mediaType === 'movie' ? MOVIE_SORT_MAP : TV_SORT_MAP;
   return map[sortKey] || map.popularity;
@@ -94,10 +159,40 @@ export const tmdbService = {
 
   // Anime (films et séries d'animation japonaise)
   getAnime: async (page = 1, sortKey = 'popularity') => {
-    // Genre 16 = Animation, pays JP = Japon
+    // Combine origin_country et original_language pour couvrir plus d'animes (ex: Tokyo Ghoul:re).
     const sortBy = resolveSortBy(sortKey, 'tv');
-    const response = await fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&with_genres=16&with_origin_country=JP&sort_by=${sortBy}&page=${page}`);
-    return response.json();
+    const [originCountryResponse, originalLanguageResponse] = await Promise.all([
+      fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&include_adult=false&with_genres=16&with_origin_country=JP&sort_by=${sortBy}&page=${page}`),
+      fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&include_adult=false&with_genres=16&with_original_language=ja&sort_by=${sortBy}&page=${page}`),
+    ]);
+
+    const [originCountryData, originalLanguageData] = await Promise.all([
+      originCountryResponse.json(),
+      originalLanguageResponse.json(),
+    ]);
+
+    const mergedMap = new Map();
+    const allResults = [
+      ...(Array.isArray(originCountryData?.results) ? originCountryData.results : []),
+      ...(Array.isArray(originalLanguageData?.results) ? originalLanguageData.results : []),
+    ];
+
+    for (const item of allResults) {
+      if (!item?.id) {
+        continue;
+      }
+      mergedMap.set(item.id, item);
+    }
+
+    const mergedResults = sortAnimeResults(Array.from(mergedMap.values()), sortKey).slice(0, 20);
+
+    return {
+      ...originCountryData,
+      page,
+      results: mergedResults,
+      total_pages: Math.max(originCountryData?.total_pages || 1, originalLanguageData?.total_pages || 1),
+      total_results: Math.max(originCountryData?.total_results || 0, originalLanguageData?.total_results || 0),
+    };
   },
 
   // Vidéos/Trailers
@@ -113,5 +208,15 @@ export const tmdbService = {
 
   getImageUrl: (path, size = 'w500') => {
     return path ? `${IMAGE_BASE_URL}/${size}${path}` : null;
-  }
+  },
+
+  getSafeDisplayTitle,
+
+  getMediaTitle: (item, mediaType = 'tv') => {
+    if (mediaType === 'movie') {
+      return getSafeDisplayTitle(item?.title, item?.original_title);
+    }
+
+    return getSafeDisplayTitle(item?.name, item?.title, item?.original_name, item?.original_title);
+  },
 };

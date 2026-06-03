@@ -430,7 +430,7 @@ export const useTopPicks = () => {
     ...item,
     id: String(item.id),
     type: item.type || 'movie',
-    title: item.title || item.name || 'Titre indisponible',
+    title: tmdbService.getSafeDisplayTitle(item.title, item.name, item.original_title, item.original_name),
     addedAt: item.addedAt || Date.now(),
   });
 
@@ -779,7 +779,7 @@ export const useLibrary = () => {
   };
 
   const normalizeLibraryItem = (item) => {
-    const inferredTitle = item.title || item.name || 'Titre indisponible';
+    const inferredTitle = tmdbService.getSafeDisplayTitle(item.title, item.name, item.original_title, item.original_name);
     const inferredType = item.type || 'movie';
 
     return {

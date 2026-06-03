@@ -27,6 +27,8 @@ function SeriesDetail() {
     const [seasonDetails, setSeasonDetails] = useState(null);
     const [loadingSeason, setLoadingSeason] = useState(false);
     const [resolvedMediaType, setResolvedMediaType] = useState('series');
+    const [resolvedProgressTotal, setResolvedProgressTotal] = useState(null);
+    const [resolvedSeasonBreakdown, setResolvedSeasonBreakdown] = useState([]);
 
     useEffect(() => {
         const fetchSeries = async () => {
@@ -44,6 +46,8 @@ function SeriesDetail() {
                     details: seriesData,
                 });
                 setResolvedMediaType(resolved.type);
+                setResolvedProgressTotal(Number.isFinite(resolved.progressTotal) ? resolved.progressTotal : null);
+                setResolvedSeasonBreakdown(Array.isArray(resolved.seasonBreakdown) ? resolved.seasonBreakdown : []);
                 setIsInTop(isInTopPicks(id, resolved.type));
                 setInLibrary(isInLibrary(id, resolved.type));
                 setUserRating(getRating(id));
@@ -193,6 +197,42 @@ function SeriesDetail() {
 
     const posterUrl = tmdbService.getImageUrl(series.poster_path, 'w500');
     const backdropUrl = tmdbService.getImageUrl(series.backdrop_path, 'w1280');
+    const displayTitle = tmdbService.getMediaTitle(series, 'series');
+    const displayEpisodeTotal = Number.isFinite(resolvedProgressTotal) && resolvedProgressTotal > 0
+        ? resolvedProgressTotal
+        : series.number_of_episodes;
+
+    const displaySeasons = (() => {
+        const tmdbSeasons = Array.isArray(series.seasons)
+            ? series.seasons.filter((season) => season.season_number > 0)
+            : [];
+
+        if (!Array.isArray(resolvedSeasonBreakdown) || resolvedSeasonBreakdown.length === 0) {
+            return tmdbSeasons;
+        }
+
+        const byNumber = new Map(tmdbSeasons.map((season) => [season.season_number, season]));
+        const merged = resolvedSeasonBreakdown.map((season) => {
+            const seasonNumber = Number(season?.seasonNumber);
+            const episodeCount = Number(season?.episodeCount);
+            const source = byNumber.get(seasonNumber);
+
+            return {
+                id: source?.id || `resolved-${seasonNumber}`,
+                season_number: seasonNumber,
+                name: source?.name || `Saison ${seasonNumber}`,
+                air_date: source?.air_date || null,
+                episode_count: Number.isFinite(episodeCount) ? episodeCount : (source?.episode_count || 0),
+            };
+        });
+
+        // Si un override d'episodes existe mais pas de repartition fiable, afficher au moins une saison coherente.
+        if (merged.length === 1 && Number.isFinite(displayEpisodeTotal) && merged[0].episode_count < displayEpisodeTotal) {
+            return [{ ...merged[0], episode_count: displayEpisodeTotal }];
+        }
+
+        return merged;
+    })();
 
     return (
         <div className="vintage-frame">
@@ -201,7 +241,7 @@ function SeriesDetail() {
             <div>
             {backdropUrl && (
                 <div className="relative h-48 sm:h-64 md:h-96 mb-8 md:mb-12">
-                    <img src={backdropUrl} alt={series.name} className="w-full h-full object-cover grayscale opacity-40" />
+                    <img src={backdropUrl} alt={displayTitle} className="w-full h-full object-cover grayscale opacity-40" />
                     <div className="absolute inset-0 bg-linear-to-t from-[#f5f5f0] to-transparent"></div>
                 </div>
             )}
@@ -218,7 +258,7 @@ function SeriesDetail() {
                     {/* COLONNE GAUCHE */}
                     <div className="min-w-0">
                         {posterUrl && (
-                            <img src={posterUrl} alt={series.name} className="w-full border-4 border-gray-800 mb-6" />
+                            <img src={posterUrl} alt={displayTitle} className="w-full border-4 border-gray-800 mb-6" />
                         )}
                         
                         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -294,7 +334,7 @@ function SeriesDetail() {
                                 <div>
                                     <p className="text-xs font-display uppercase tracking-wider text-gray-500 mb-1">Saisons / Épisodes</p>
                                     <p className="font-serif text-sm text-gray-700">
-                                        {series.number_of_seasons} saison{series.number_of_seasons > 1 ? 's' : ''} • {series.number_of_episodes} épisodes
+                                        {series.number_of_seasons} saison{series.number_of_seasons > 1 ? 's' : ''} • {displayEpisodeTotal} épisodes
                                     </p>
                                 </div>
                                 
@@ -334,7 +374,7 @@ function SeriesDetail() {
                     {/* COLONNE DROITE */}
                     <div className="min-w-0">
                         <h1 className="text-3xl sm:text-4xl md:text-5xl font-display uppercase tracking-wider text-gray-600 mb-4 wrap-break-word">
-                            {series.name}
+                            {displayTitle}
                         </h1>
                         
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-6 font-serif text-sm md:text-base text-gray-600">
@@ -401,11 +441,11 @@ function SeriesDetail() {
                         )}
                         
                         {/* Détails des saisons - CLIQUABLES */}
-                        {series.seasons && series.seasons.length > 0 && (
+                        {displaySeasons.length > 0 && (
                             <div className="mb-6">
                                 <h3 className="font-display text-2xl uppercase tracking-wider text-gray-600 mb-4">Saisons</h3>
                                 <div className="grid grid-cols-2 gap-3">
-                                    {series.seasons.filter(s => s.season_number > 0).map((season) => (
+                                    {displaySeasons.map((season) => (
                                         <button
                                             key={season.id}
                                             onClick={() => handleSeasonClick(season)}
