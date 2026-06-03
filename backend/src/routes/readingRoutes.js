@@ -65,14 +65,17 @@ router.get('/mangadex/supplement', async (req, res) => {
             }
 
             const normalizedTitle = normalizeText(title);
-            selected =
-                entries.find((entry) => {
+            if (!normalizedTitle) {
+                continue;
+            }
+
+            const matchedEntry = entries.find((entry) => {
                     const baseTitles = Object.values(entry?.attributes?.title || {});
                     const altTitles = Array.isArray(entry?.attributes?.altTitles)
                         ? entry.attributes.altTitles.flatMap((titleObj) => Object.values(titleObj || {}))
                         : [];
                     const mdTitles = [...baseTitles, ...altTitles];
-                    const normalizedCandidates = mdTitles.map((candidate) => normalizeText(candidate));
+                    const normalizedCandidates = mdTitles.map((candidate) => normalizeText(candidate)).filter(Boolean);
 
                     return normalizedCandidates.some(
                         (candidate) =>
@@ -80,7 +83,11 @@ router.get('/mangadex/supplement', async (req, res) => {
                             candidate.includes(normalizedTitle) ||
                             normalizedTitle.includes(candidate),
                     );
-                }) || entries[0];
+                });
+
+            if (matchedEntry) {
+                selected = matchedEntry;
+            }
 
             if (selected) {
                 break;
