@@ -1,6 +1,8 @@
 import { tmdbService } from '../services/tmdb';
 
 const JIKAN_BASE_URL = 'https://api.jikan.moe/v4';
+const ANILIST_URL = 'https://graphql.anilist.co';
+const KITSU_BASE_URL = 'https://kitsu.io/api/edge';
 const animeSignalCache = new Map();
 
 function normalizeForMatch(value) {
@@ -60,6 +62,41 @@ function scoreJikanCandidate(titleNormalized, expectedYear, candidate) {
   return score;
 }
 
+function scoreGenericCandidate({ titleNormalized, expectedYear, candidateTitle, candidateYear, candidateType, prefersTv }) {
+  const normalizedCandidateTitle = normalizeForMatch(candidateTitle);
+  if (!normalizedCandidateTitle) {
+    return -Infinity;
+  }
+
+  let score = 0;
+  if (normalizedCandidateTitle === titleNormalized) {
+    score += 7;
+  }
+
+  if (normalizedCandidateTitle.includes(titleNormalized) || titleNormalized.includes(normalizedCandidateTitle)) {
+    score += 4;
+  }
+
+  if (normalizedCandidateTitle.startsWith(titleNormalized) || titleNormalized.startsWith(normalizedCandidateTitle)) {
+    score += 2;
+  }
+
+  if (expectedYear && candidateYear) {
+    const gap = Math.abs(expectedYear - candidateYear);
+    if (gap === 0) {
+      score += 2;
+    } else if (gap <= 1) {
+      score += 1;
+    }
+  }
+
+  if (prefersTv && String(candidateType || '').toUpperCase().includes('TV')) {
+    score += 1;
+  }
+
+  return score;
+}
+
 async function fetchJikanAnimeSignal({ title, year }) {
   const normalizedTitle = normalizeForMatch(title);
   if (!normalizedTitle) {
@@ -104,6 +141,164 @@ async function fetchJikanAnimeSignal({ title, year }) {
   }
 }
 
+async function fetchAniListAnimeSignal({ title, year }) {
+  const normalizedTitle = normalizeForMatch(title);
+  if (!normalizedTitle) {
+    return null;
+  }
+
+  const cacheKey = `anilist::${normalizedTitle}::${year || 'na'}`;
+  if (animeSignalCache.has(cacheKey)) {
+    return animeSignalCache.get(cacheKey);
+  }
+
+  const query = `
+    query ($search: String) {
+      Page(page: 1, perPage: 10) {
+        media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+          episodes
+          format
+          seasonYear
+          title {
+            romaji
+            english
+            native
+          }
+          synonyms
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await fetch(ANILIST_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: { search: title },
+      }),
+    });
+
+    const payload = await response.json();
+    const candidates = Array.isArray(payload?.data?.Page?.media) ? payload.data.Page.media : [];
+
+    let bestCandidate = null;
+    let bestScore = -Infinity;
+
+    for (const candidate of candidates) {
+      const candidateTitles = [
+        candidate?.title?.romaji,
+        candidate?.title?.english,
+        candidate?.title?.native,
+        ...(Array.isArray(candidate?.synonyms) ? candidate.synonyms : []),
+      ].filter(Boolean);
+
+      for (const candidateTitle of candidateTitles) {
+        const score = scoreGenericCandidate({
+          titleNormalized: normalizedTitle,
+          expectedYear: year,
+          candidateTitle,
+          candidateYear: Number.isFinite(candidate?.seasonYear) ? candidate.seasonYear : null,
+          candidateType: candidate?.format,
+          prefersTv: true,
+        });
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestCandidate = candidate;
+        }
+      }
+    }
+
+    const hasSolidMatch = bestCandidate && bestScore >= 4;
+    const signal = hasSolidMatch
+      ? {
+          isAnime: true,
+          episodes: Number.isFinite(bestCandidate?.episodes) ? bestCandidate.episodes : null,
+          source: 'anilist',
+        }
+      : null;
+
+    animeSignalCache.set(cacheKey, signal);
+    return signal;
+  } catch (_error) {
+    animeSignalCache.set(cacheKey, null);
+    return null;
+  }
+}
+
+async function fetchKitsuAnimeSignal({ title, year }) {
+  const normalizedTitle = normalizeForMatch(title);
+  if (!normalizedTitle) {
+    return null;
+  }
+
+  const cacheKey = `kitsu::${normalizedTitle}::${year || 'na'}`;
+  if (animeSignalCache.has(cacheKey)) {
+    return animeSignalCache.get(cacheKey);
+  }
+
+  try {
+    const response = await fetch(
+      `${KITSU_BASE_URL}/anime?filter[text]=${encodeURIComponent(title)}&page[limit]=10`,
+      {
+        headers: {
+          Accept: 'application/vnd.api+json',
+        },
+      },
+    );
+    const payload = await response.json();
+    const candidates = Array.isArray(payload?.data) ? payload.data : [];
+
+    let bestCandidate = null;
+    let bestScore = -Infinity;
+
+    for (const candidate of candidates) {
+      const attributes = candidate?.attributes || {};
+      const candidateTitles = [
+        attributes.canonicalTitle,
+        ...(Array.isArray(attributes.abbreviatedTitles) ? attributes.abbreviatedTitles : []),
+      ].filter(Boolean);
+
+      for (const candidateTitle of candidateTitles) {
+        const score = scoreGenericCandidate({
+          titleNormalized: normalizedTitle,
+          expectedYear: year,
+          candidateTitle,
+          candidateYear: getYearFromDate(attributes.startDate),
+          candidateType: attributes.subtype,
+          prefersTv: true,
+        });
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestCandidate = candidate;
+        }
+      }
+    }
+
+    const attributes = bestCandidate?.attributes || {};
+    const hasSolidMatch = bestCandidate && bestScore >= 4;
+    const signal = hasSolidMatch
+      ? {
+          isAnime: true,
+          episodes: Number.isFinite(attributes?.episodeCount) ? attributes.episodeCount : null,
+          source: 'kitsu',
+        }
+      : null;
+
+    animeSignalCache.set(cacheKey, signal);
+    return signal;
+  } catch (_error) {
+    animeSignalCache.set(cacheKey, null);
+    return null;
+  }
+}
+
 function isTmdbAnimeDetails(details) {
   const genreIds = Array.isArray(details?.genres) ? details.genres.map((genre) => genre.id) : [];
   const originCountries = Array.isArray(details?.origin_country) ? details.origin_country : [];
@@ -114,11 +309,19 @@ function isTmdbAnimeDetails(details) {
 
 async function getAnimeCrossSignal({ title, year, details }) {
   const tmdbSaysAnime = isTmdbAnimeDetails(details);
-  const jikanSignal = await fetchJikanAnimeSignal({ title, year });
+  const [jikanSignal, aniListSignal, kitsuSignal] = await Promise.all([
+    fetchJikanAnimeSignal({ title, year }),
+    fetchAniListAnimeSignal({ title, year }),
+    fetchKitsuAnimeSignal({ title, year }),
+  ]);
+
+  const providers = [jikanSignal, aniListSignal, kitsuSignal].filter(Boolean);
 
   return {
-    isAnime: tmdbSaysAnime || Boolean(jikanSignal?.isAnime),
+    isAnime: tmdbSaysAnime || providers.length > 0,
     jikanEpisodes: Number.isFinite(jikanSignal?.episodes) ? jikanSignal.episodes : null,
+    aniListEpisodes: Number.isFinite(aniListSignal?.episodes) ? aniListSignal.episodes : null,
+    kitsuEpisodes: Number.isFinite(kitsuSignal?.episodes) ? kitsuSignal.episodes : null,
   };
 }
 
@@ -173,6 +376,8 @@ export async function resolveSeriesAnimeMetadata({
     tmdbEpisodes || 0,
     seasonEpisodes || 0,
     crossSignal.jikanEpisodes || 0,
+    crossSignal.aniListEpisodes || 0,
+    crossSignal.kitsuEpisodes || 0,
   ) || null;
 
   return {
