@@ -62,6 +62,7 @@ Base lecture via API:
 
 - Categories disponibles: manga, manwha, light novel, roman
 - Sources API: Jikan/MyAnimeList (manga, manwha, light novel) et Open Library (roman)
+- Proxy backend /api/reading pour MangaDex supplement (chapitres scans, traductions, staff, score) et traduction FR (evite les blocages CORS navigateur)
 - Navigation par categorie + pagination publique (sans connexion)
 - Fonction de suivi personnel/bibliotheque desactivee temporairement
 - Pages detail lecture internes (mode fiche): synopsis/resume en francais, note source, genres, traductions completes, chapitres + chapitres scans, equipe et similaires

@@ -6,6 +6,7 @@ import { config } from './utils/config.js';
 import './db.js';
 import { initPassport } from './utils/passport.js';
 import authRoutes from './routes/authRoutes.js';
+import readingRoutes from './routes/readingRoutes.js';
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/reading', readingRoutes);
 
 app.listen(config.port, () => {
     console.log(`Auth API listening on http://localhost:${config.port}`);
