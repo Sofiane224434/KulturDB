@@ -9,6 +9,7 @@ function UserProfile() {
   const { isAuthenticated } = useAuth();
   const [profile, setProfile] = useState(null);
   const [publicActivity, setPublicActivity] = useState(null);
+  const [activeDetail, setActiveDetail] = useState('topPicks');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -108,109 +109,152 @@ function UserProfile() {
               {publicActivity ? (
                 <>
                   <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 mb-4">
-                    <div className="border border-gray-300 bg-gray-50 p-4">
+                    <button
+                      type="button"
+                      onClick={() => setActiveDetail('topPicks')}
+                      className={`border p-4 text-left transition-colors ${activeDetail === 'topPicks' ? 'border-gray-700 bg-gray-200' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}
+                    >
                       <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Top personnels</p>
                       <p className="text-2xl font-display uppercase tracking-wider text-gray-800">{publicActivity.counts?.topPicks || 0}</p>
-                    </div>
-                    <div className="border border-gray-300 bg-gray-50 p-4">
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveDetail('tracked')}
+                      className={`border p-4 text-left transition-colors ${activeDetail === 'tracked' ? 'border-gray-700 bg-gray-200' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}
+                    >
                       <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Elements suivis</p>
                       <p className="text-2xl font-display uppercase tracking-wider text-gray-800">{publicActivity.counts?.tracked || 0}</p>
-                    </div>
-                    <div className="border border-gray-300 bg-gray-50 p-4">
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveDetail('completed')}
+                      className={`border p-4 text-left transition-colors ${activeDetail === 'completed' ? 'border-gray-700 bg-gray-200' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}
+                    >
                       <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Termines</p>
                       <p className="text-2xl font-display uppercase tracking-wider text-gray-800">{publicActivity.counts?.completed || 0}</p>
-                    </div>
-                    <div className="border border-gray-300 bg-gray-50 p-4">
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveDetail('ratings')}
+                      className={`border p-4 text-left transition-colors ${activeDetail === 'ratings' ? 'border-gray-700 bg-gray-200' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}
+                    >
                       <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Notes</p>
                       <p className="text-2xl font-display uppercase tracking-wider text-gray-800">{publicActivity.counts?.ratings || 0}</p>
-                    </div>
-                    <div className="border border-gray-300 bg-gray-50 p-4">
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveDetail('ratingsAverage')}
+                      className={`border p-4 text-left transition-colors ${activeDetail === 'ratingsAverage' ? 'border-gray-700 bg-gray-200' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}
+                    >
                       <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Moyenne notes</p>
                       <p className="text-2xl font-display uppercase tracking-wider text-gray-800">
                         {publicActivity.ratingsAverage != null ? publicActivity.ratingsAverage : '-'}
                       </p>
-                    </div>
-                    <div className="border border-gray-300 bg-gray-50 p-4">
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveDetail('comments')}
+                      className={`border p-4 text-left transition-colors ${activeDetail === 'comments' ? 'border-gray-700 bg-gray-200' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}
+                    >
                       <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Commentaires</p>
                       <p className="text-2xl font-display uppercase tracking-wider text-gray-800">{publicActivity.counts?.comments || 0}</p>
-                    </div>
+                    </button>
                   </div>
 
-                  {Array.isArray(publicActivity.recentTopPicks) && publicActivity.recentTopPicks.length > 0 ? (
-                    <div className="border border-gray-300 bg-white p-4">
-                      <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Derniers tops</p>
-                      <ul className="space-y-2">
-                        {publicActivity.recentTopPicks.map((entry, index) => (
-                          <li key={`${entry.type}-${entry.id}-${index}`} className="font-serif text-gray-700">
-                            {index + 1}. {entry.title}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : (
-                    <p className="font-serif text-gray-600">Aucune activite synchronisee visible pour le moment.</p>
-                  )}
+                  <div className="border border-gray-300 bg-white p-4 mt-4">
+                    {activeDetail === 'topPicks' && (
+                      <>
+                        <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Detail top personnels</p>
+                        {Array.isArray(publicActivity.recentTopPicks) && publicActivity.recentTopPicks.length > 0 ? (
+                          <ul className="space-y-2">
+                            {publicActivity.recentTopPicks.map((entry, index) => (
+                              <li key={`${entry.type}-${entry.id}-${index}`} className="font-serif text-gray-700">
+                                {index + 1}. {entry.title}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="font-serif text-sm text-gray-500">Aucun top personnel visible.</p>
+                        )}
+                      </>
+                    )}
 
-                  <div className="grid md:grid-cols-2 gap-4 mt-4">
-                    <div className="border border-gray-300 bg-gray-50 p-4">
-                      <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Detail elements suivis</p>
-                      {Array.isArray(publicActivity.details?.tracked) && publicActivity.details.tracked.length > 0 ? (
-                        <ul className="space-y-2">
-                          {publicActivity.details.tracked.map((entry, index) => (
-                            <li key={`tracked-${entry.type}-${entry.id}-${index}`} className="font-serif text-sm text-gray-700">
-                              {entry.title} - {entry.progressCurrent}/{entry.progressTotal || '?'} {entry.progressUnit || 'element'}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="font-serif text-sm text-gray-500">Aucun element suivi.</p>
-                      )}
-                    </div>
+                    {activeDetail === 'tracked' && (
+                      <>
+                        <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Detail elements suivis</p>
+                        {Array.isArray(publicActivity.details?.tracked) && publicActivity.details.tracked.length > 0 ? (
+                          <ul className="space-y-2">
+                            {publicActivity.details.tracked.map((entry, index) => (
+                              <li key={`tracked-${entry.type}-${entry.id}-${index}`} className="font-serif text-sm text-gray-700">
+                                {entry.title} - {entry.progressCurrent}/{entry.progressTotal || '?'} {entry.progressUnit || 'element'}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="font-serif text-sm text-gray-500">Aucun element suivi.</p>
+                        )}
+                      </>
+                    )}
 
-                    <div className="border border-gray-300 bg-gray-50 p-4">
-                      <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Detail termines</p>
-                      {Array.isArray(publicActivity.details?.completed) && publicActivity.details.completed.length > 0 ? (
-                        <ul className="space-y-2">
-                          {publicActivity.details.completed.map((entry, index) => (
-                            <li key={`completed-${entry.type}-${entry.id}-${index}`} className="font-serif text-sm text-gray-700">
-                              {entry.title}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="font-serif text-sm text-gray-500">Aucun element termine.</p>
-                      )}
-                    </div>
+                    {activeDetail === 'completed' && (
+                      <>
+                        <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Detail termines</p>
+                        {Array.isArray(publicActivity.details?.completed) && publicActivity.details.completed.length > 0 ? (
+                          <ul className="space-y-2">
+                            {publicActivity.details.completed.map((entry, index) => (
+                              <li key={`completed-${entry.type}-${entry.id}-${index}`} className="font-serif text-sm text-gray-700">
+                                {entry.title}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="font-serif text-sm text-gray-500">Aucun element termine.</p>
+                        )}
+                      </>
+                    )}
 
-                    <div className="border border-gray-300 bg-gray-50 p-4">
-                      <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Detail notes</p>
-                      {Array.isArray(publicActivity.details?.ratings) && publicActivity.details.ratings.length > 0 ? (
-                        <ul className="space-y-2">
-                          {publicActivity.details.ratings.map((entry, index) => (
-                            <li key={`rating-${entry.itemId}-${index}`} className="font-serif text-sm text-gray-700">
-                              {entry.title} - {entry.value}/5
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="font-serif text-sm text-gray-500">Aucune note.</p>
-                      )}
-                    </div>
+                    {activeDetail === 'ratings' && (
+                      <>
+                        <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Detail notes</p>
+                        {Array.isArray(publicActivity.details?.ratings) && publicActivity.details.ratings.length > 0 ? (
+                          <ul className="space-y-2">
+                            {publicActivity.details.ratings.map((entry, index) => (
+                              <li key={`rating-${entry.itemId}-${index}`} className="font-serif text-sm text-gray-700">
+                                {entry.title} - {entry.value}/5
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="font-serif text-sm text-gray-500">Aucune note.</p>
+                        )}
+                      </>
+                    )}
 
-                    <div className="border border-gray-300 bg-gray-50 p-4">
-                      <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Detail commentaires</p>
-                      {Array.isArray(publicActivity.details?.comments) && publicActivity.details.comments.length > 0 ? (
-                        <ul className="space-y-2">
-                          {publicActivity.details.comments.map((entry, index) => (
-                            <li key={`comment-${entry.itemId}-${index}`} className="font-serif text-sm text-gray-700">
-                              {entry.title} - {entry.count} commentaire(s)
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="font-serif text-sm text-gray-500">Aucun commentaire.</p>
-                      )}
-                    </div>
+                    {activeDetail === 'ratingsAverage' && (
+                      <>
+                        <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Detail moyenne notes</p>
+                        <p className="font-serif text-sm text-gray-700">
+                          Moyenne calculee sur {publicActivity.counts?.ratings || 0} note(s): {publicActivity.ratingsAverage != null ? `${publicActivity.ratingsAverage}/5` : 'Aucune moyenne disponible'}.
+                        </p>
+                      </>
+                    )}
+
+                    {activeDetail === 'comments' && (
+                      <>
+                        <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Detail commentaires</p>
+                        {Array.isArray(publicActivity.details?.comments) && publicActivity.details.comments.length > 0 ? (
+                          <ul className="space-y-2">
+                            {publicActivity.details.comments.map((entry, index) => (
+                              <li key={`comment-${entry.itemId}-${index}`} className="font-serif text-sm text-gray-700">
+                                {entry.title} - {entry.count} commentaire(s)
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="font-serif text-sm text-gray-500">Aucun commentaire.</p>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {publicActivity.syncedAt ? (
