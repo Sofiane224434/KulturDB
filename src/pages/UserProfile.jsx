@@ -1,11 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../services/authApi';
 import { tmdbService } from '../services/tmdb';
+import { useLibrary } from '../hooks/useLocalStorage';
 
 function normalizeDetailMediaType(value) {
-  return value === 'movie' ? 'movie' : 'series';
+  if (value === 'movie') {
+    return 'movie';
+  }
+
+  if (value === 'series' || value === 'anime') {
+    return 'series';
+  }
+
+  return value || 'series';
 }
 
 function getDetailLink(entry) {
@@ -15,7 +24,21 @@ function getDetailLink(entry) {
     return null;
   }
 
-  return mediaType === 'movie' ? `/movie/${id}` : `/series/${id}`;
+  if (mediaType === 'movie') {
+    return `/movie/${id}`;
+  }
+
+  if (mediaType === 'series') {
+    return `/series/${id}`;
+  }
+
+  return `/reading/${mediaType}/${id}`;
+}
+
+function getEntryKey(entry) {
+  const mediaType = normalizeDetailMediaType(entry?.type);
+  const id = entry?.id || entry?.itemId;
+  return `${mediaType}:${String(id || '')}`;
 }
 
 function ActivityDetailCards({ entries, emptyLabel, metaLabel }) {
@@ -67,11 +90,52 @@ function UserProfile() {
   const { userId } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { getLibrary } = useLibrary();
   const [profile, setProfile] = useState(null);
   const [publicActivity, setPublicActivity] = useState(null);
   const [activeDetail, setActiveDetail] = useState('topPicks');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const watchTogetherSuggestions = useMemo(() => {
+    if (!publicActivity) {
+      return [];
+    }
+
+    const myLibrary = getLibrary();
+    const myCompleted = myLibrary.filter((entry) => entry?.status === 'done');
+    const myCompletedTypes = new Set(myCompleted.map((entry) => normalizeDetailMediaType(entry?.type)));
+    const myCompletedKeys = new Set(myCompleted.map((entry) => getEntryKey(entry)));
+
+    const theirCompleted = Array.isArray(publicActivity.details?.completed) ? publicActivity.details.completed : [];
+    const theirCompletedTypes = new Set(theirCompleted.map((entry) => normalizeDetailMediaType(entry?.type)));
+    const theirCompletedKeys = new Set(theirCompleted.map((entry) => getEntryKey(entry)));
+
+    const sharedTypes = Array.from(myCompletedTypes).filter((type) => theirCompletedTypes.has(type));
+    const allowedTypes = sharedTypes.length > 0 ? sharedTypes : ['movie', 'series'];
+
+    const rawCandidates = [
+      ...(Array.isArray(publicActivity.details?.roadmap) ? publicActivity.details.roadmap : []),
+      ...(Array.isArray(publicActivity.recentTopPicks) ? publicActivity.recentTopPicks : []),
+    ];
+
+    const deduped = new Map();
+    for (const entry of rawCandidates) {
+      const key = getEntryKey(entry);
+      const normalizedType = normalizeDetailMediaType(entry?.type);
+      if (!entry?.id || !allowedTypes.includes(normalizedType)) {
+        continue;
+      }
+      if (myCompletedKeys.has(key) || theirCompletedKeys.has(key)) {
+        continue;
+      }
+      if (!deduped.has(key)) {
+        deduped.set(key, entry);
+      }
+    }
+
+    return Array.from(deduped.values()).slice(0, 8);
+  }, [publicActivity, getLibrary]);
 
   useEffect(() => {
     let cancelled = false;
@@ -195,6 +259,14 @@ function UserProfile() {
                     </button>
                     <button
                       type="button"
+                      onClick={() => setActiveDetail('roadmap')}
+                      className={`border p-4 text-left transition-colors ${activeDetail === 'roadmap' ? 'border-gray-700 bg-gray-200' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}
+                    >
+                      <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Roadmap</p>
+                      <p className="text-2xl font-display uppercase tracking-wider text-gray-800">{publicActivity.counts?.roadmap || 0}</p>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setActiveDetail('ratings')}
                       className={`border p-4 text-left transition-colors ${activeDetail === 'ratings' ? 'border-gray-700 bg-gray-200' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}
                     >
@@ -255,6 +327,17 @@ function UserProfile() {
                       </>
                     )}
 
+                    {activeDetail === 'roadmap' && (
+                      <>
+                        <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Detail roadmap</p>
+                        <ActivityDetailCards
+                          entries={publicActivity.details?.roadmap}
+                          emptyLabel="Aucun element futur partage."
+                          metaLabel={(entry) => `${entry?.progressCurrent || 0}/${entry?.progressTotal || '?'} ${entry?.progressUnit || 'element'}`}
+                        />
+                      </>
+                    )}
+
                     {activeDetail === 'ratings' && (
                       <>
                         <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Detail notes</p>
@@ -296,6 +379,18 @@ function UserProfile() {
               ) : (
                 <p className="font-serif text-gray-600">Aucune activite synchronisee visible pour le moment.</p>
               )}
+            </section>
+
+            <section className="border-2 border-gray-300 bg-white p-6 md:p-10">
+              <h2 className="text-2xl font-display uppercase tracking-wider text-gray-700 mb-3">A voir ensemble</h2>
+              <p className="font-serif text-sm text-gray-600 mb-4">
+                Proposition basee sur vos habitudes communes (exclusion automatique des contenus deja termines par l un de vous).
+              </p>
+              <ActivityDetailCards
+                entries={watchTogetherSuggestions}
+                emptyLabel="Pas encore assez de points communs pour proposer une selection partagee."
+                metaLabel={(entry) => `Type: ${String(entry?.type || 'media').toUpperCase()}`}
+              />
             </section>
           </>
         ) : null}

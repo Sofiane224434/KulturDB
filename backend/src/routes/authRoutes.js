@@ -103,6 +103,11 @@ function buildPublicActivity(syncData) {
     const ratings = syncData?.ratings && typeof syncData.ratings === 'object' ? syncData.ratings : {};
     const comments = syncData?.comments && typeof syncData.comments === 'object' ? syncData.comments : {};
 
+    const isPublicComment = (entry) => entry?.visibility !== 'private';
+    const isRoadmapStatus = (status) => ['to_start', 'to_resume', 'on_hold', 'paused'].includes(String(status || '').toLowerCase());
+    const roadmapCandidates = [...library, ...watchlist]
+        .filter((item) => item && isRoadmapStatus(item.status));
+
     const ratingsValues = Object.values(ratings)
         .map((value) => Number(value))
         .filter((value) => Number.isFinite(value) && value > 0);
@@ -111,7 +116,7 @@ function buildPublicActivity(syncData) {
         if (!Array.isArray(entry)) {
             return total;
         }
-        return total + entry.length;
+        return total + entry.filter(isPublicComment).length;
     }, 0);
 
     const completedLibraryCount = library.filter((item) => item?.status === 'done').length;
@@ -152,6 +157,17 @@ function buildPublicActivity(syncData) {
         posterPath: item?.poster_path || item?.posterPath || null,
     }));
 
+    const roadmapDetails = roadmapCandidates.slice(0, 12).map((item) => ({
+        id: item?.id,
+        type: item?.type || 'movie',
+        title: item?.title || item?.name || 'Titre indisponible',
+        status: item?.status || 'to_start',
+        progressCurrent: Number.isFinite(item?.progressCurrent) ? item.progressCurrent : 0,
+        progressTotal: Number.isFinite(item?.progressTotal) ? item.progressTotal : null,
+        progressUnit: item?.progressUnit || 'element',
+        posterPath: item?.poster_path || item?.posterPath || null,
+    }));
+
     const completedDetails = [...library, ...watchlist]
         .filter((item) => item?.status === 'done')
         .slice(0, 8)
@@ -179,13 +195,14 @@ function buildPublicActivity(syncData) {
 
     const commentDetails = Object.entries(comments)
         .map(([itemId, list]) => {
+            const publicList = Array.isArray(list) ? list.filter(isPublicComment) : [];
             const itemMeta = itemMetaByItemId.get(String(itemId));
             return {
                 itemId,
                 title: itemMeta?.title || `Element ${itemId}`,
                 type: itemMeta?.type || 'movie',
                 posterPath: itemMeta?.posterPath || null,
-                count: Array.isArray(list) ? list.length : 0,
+                count: publicList.length,
             };
         })
         .filter((entry) => entry.count > 0)
@@ -198,6 +215,7 @@ function buildPublicActivity(syncData) {
             topPicks: topPicks.length,
             tracked: library.length,
             watchlist: watchlist.length,
+            roadmap: roadmapCandidates.length,
             completed: completedLibraryCount + completedWatchlistCount,
             ratings: ratingsValues.length,
             comments: commentsCount,
@@ -208,6 +226,7 @@ function buildPublicActivity(syncData) {
         recentTopPicks,
         details: {
             tracked: trackedDetails,
+            roadmap: roadmapDetails,
             completed: completedDetails,
             ratings: ratingDetails,
             comments: commentDetails,

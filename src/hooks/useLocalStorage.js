@@ -583,24 +583,35 @@ export const useFavorites = () => {
 
 // Hook pour gérer les commentaires
 export const useComments = () => {
+  const normalizeComment = (comment) => ({
+    id: comment?.id || Date.now(),
+    text: String(comment?.text || ''),
+    parentId: comment?.parentId || null,
+    createdAt: Number.isFinite(comment?.createdAt) ? comment.createdAt : Date.now(),
+    author: comment?.author || 'Utilisateur',
+    visibility: comment?.visibility === 'private' ? 'private' : 'public',
+  });
+
   const syncComments = () => {
     pushUserSyncPatch({ comments: getCommentsSnapshot() });
   };
 
   const getComments = (itemId) => {
     const comments = localStorage.getItem(`moviedb_comments_${itemId}`);
-    return comments ? JSON.parse(comments) : [];
+    const parsed = comments ? JSON.parse(comments) : [];
+    return Array.isArray(parsed) ? parsed.map((entry) => normalizeComment(entry)) : [];
   };
 
-  const addComment = (itemId, text, parentId = null) => {
+  const addComment = (itemId, text, parentId = null, visibility = 'public') => {
     const comments = getComments(itemId);
-    const newComment = {
+    const newComment = normalizeComment({
       id: Date.now(),
       text,
       parentId,
       createdAt: Date.now(),
-      author: 'Utilisateur'
-    };
+      author: 'Utilisateur',
+      visibility,
+    });
     const updated = [...comments, newComment];
     localStorage.setItem(`moviedb_comments_${itemId}`, JSON.stringify(updated));
     syncComments();

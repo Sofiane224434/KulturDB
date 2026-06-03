@@ -12,6 +12,7 @@ function SeriesDetail() {
     const [loading, setLoading] = useState(true);
     const [comments, setComments] = useState([]);
     const [commentText, setCommentText] = useState('');
+    const [commentVisibility, setCommentVisibility] = useState('public');
     const [replyTo, setReplyTo] = useState(null);
     const [trailer, setTrailer] = useState(null);
     
@@ -82,7 +83,7 @@ function SeriesDetail() {
     const handleSubmitComment = (e) => {
         e.preventDefault();
         if (commentText.trim()) {
-            const updated = addComment(id, commentText, replyTo);
+            const updated = addComment(id, commentText, replyTo, commentVisibility);
             setComments(updated);
             setCommentText('');
             setReplyTo(null);
@@ -657,6 +658,20 @@ function SeriesDetail() {
                             className="w-full p-4 border-2 border-gray-800 font-serif text-gray-700 focus:outline-none focus:border-gray-600 mb-4"
                             rows="4"
                         />
+                        <div className="mb-4">
+                            <label htmlFor="series-comment-visibility" className="block mb-2 text-xs font-display uppercase tracking-wider text-gray-500">
+                                Visibilite
+                            </label>
+                            <select
+                                id="series-comment-visibility"
+                                value={commentVisibility}
+                                onChange={(e) => setCommentVisibility(e.target.value)}
+                                className="px-3 py-2 border-2 border-gray-800 bg-white font-serif text-gray-700"
+                            >
+                                <option value="public">Public</option>
+                                <option value="private">Prive</option>
+                            </select>
+                        </div>
                         <button
                             type="submit"
                             className="px-8 py-3 font-display uppercase tracking-wider bg-black text-gray-400 hover:text-white transition-colors border-2 border-gray-800"
@@ -673,6 +688,9 @@ function SeriesDetail() {
                                         <p className="font-display text-sm uppercase tracking-wider text-gray-700">{comment.author}</p>
                                         <p className="font-serif text-xs text-gray-500">
                                             {new Date(comment.createdAt).toLocaleDateString('fr-FR')}
+                                        </p>
+                                        <p className="font-serif text-xs text-gray-500 uppercase tracking-wider">
+                                            {comment.visibility === 'private' ? 'Prive' : 'Public'}
                                         </p>
                                     </div>
                                     <button
@@ -697,6 +715,9 @@ function SeriesDetail() {
                                                 <p className="font-display text-sm uppercase tracking-wider text-gray-700">{reply.author}</p>
                                                 <p className="font-serif text-xs text-gray-500">
                                                     {new Date(reply.createdAt).toLocaleDateString('fr-FR')}
+                                                </p>
+                                                <p className="font-serif text-xs text-gray-500 uppercase tracking-wider">
+                                                    {reply.visibility === 'private' ? 'Prive' : 'Public'}
                                                 </p>
                                             </div>
                                             <button

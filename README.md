@@ -71,10 +71,15 @@ Variables OAuth GitHub:
 - Tops personnels visibles dans /library (top films, top series, top anime, top manga, etc.), avec gestion locale via le stockage navigateur
 - Alias legacy conserve: /watchlist redirige vers /library
 - Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, et gestion d amis depuis /profile (compte connecte)
+- Commentaires films/series: choix de visibilite `public` ou `prive` a la publication
+- Activite publique profil: seuls les commentaires `public` sont pris en compte dans les compteurs/details visibles par les autres
+- Profil: roadmap personnelle des futurs contenus a voir/lire (vue globale + filtres par categorie)
+- Profil: 5 recommandations automatiques basees sur l historique vu/lu et la roadmap
 - Profil: acces au profil d un autre utilisateur depuis la recherche/les listes d amis (`/profile/:userId`)
 - Profil utilisateur public (`/profile/:userId`): affichage de l activite synchronisee (tops, suivi, notes, commentaires, moyenne)
 - Profil utilisateur public (`/profile/:userId`): details visibles pour tops/suivi/termines/notes/commentaires (pas seulement les compteurs)
 - Profil utilisateur public (`/profile/:userId`): details affiches en cards (avec affiche quand disponible) et lien vers les pages detail media
+- Profil utilisateur public (`/profile/:userId`): section `A voir ensemble` basee sur les habitudes communes, sans inclure les contenus deja termines par l un des deux
 - Navigation: sidebar desktop repliable/depliable avec memorisation locale de l etat (bouton flottant "Menu" retire)
 - Profil amis: l email des autres utilisateurs est masque (recherche, amis, demandes), recherche par pseudo uniquement
 - Profil: le temps regarde est affiche en mois / jours / heures
