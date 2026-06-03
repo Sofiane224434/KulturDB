@@ -114,8 +114,8 @@ function Header() {
                         <Link to="/anime" className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
                             Anime
                         </Link>
-                        <Link to="/watchlist" className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
-                            Watchlist
+                        <Link to="/library" className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
+                            Médiathèque
                         </Link>
                         <Link to="/favorites" className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
                             Favoris
@@ -236,8 +236,8 @@ function Header() {
                         <Link to="/anime" onClick={() => setShowMobileMenu(false)} className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
                             Anime
                         </Link>
-                        <Link to="/watchlist" onClick={() => setShowMobileMenu(false)} className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
-                            Watchlist
+                        <Link to="/library" onClick={() => setShowMobileMenu(false)} className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
+                            Médiathèque
                         </Link>
                         <Link to="/favorites" onClick={() => setShowMobileMenu(false)} className="font-display uppercase tracking-wider text-gray-500 hover:text-gray-300 transition-colors">
                             Favoris

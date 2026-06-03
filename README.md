@@ -54,9 +54,10 @@ Variables OAuth GitHub:
 - Connexion locale (JWT)
 - OAuth Google (si variables Google configurees)
 - OAuth GitHub (si variables GitHub configurees)
-- Routes privees protegees: /favorites et /watchlist (redirection auto vers /login)
+- Route privee protegee: /favorites (redirection auto vers /login)
+- Mediatheque publique: /library (alias maintenu: /watchlist)
 
-Watchlist avancee:
+Mediatheque avancee:
 
 - Suivi du statut: a voir/lire, en cours, deja vu/lu, revoir/relire
 - Suivi progression: episode/chapitre/tome/page + current/total

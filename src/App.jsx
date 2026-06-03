@@ -83,12 +83,9 @@ function App() {
                             />
                             <Route
                                 path="/watchlist"
-                                element={
-                                    <ProtectedRoute>
-                                        <Watchlist />
-                                    </ProtectedRoute>
-                                }
+                                element={<Watchlist />}
                             />
+                            <Route path="/library" element={<Watchlist />} />
                             <Route path="/login" element={<Login />} />
                             <Route path="/register" element={<Register />} />
                             <Route path="/auth/verify-email" element={<VerifyEmail />} />

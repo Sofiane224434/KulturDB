@@ -212,7 +212,7 @@ function SeriesDetail() {
                             onClick={handleWatchlistToggle}
                             className="w-full mb-6 px-6 py-3 font-display uppercase tracking-wider bg-gray-700 text-gray-400 hover:text-white transition-colors border-2 border-gray-800"
                         >
-                            {isInWatch ? '✓ Dans ma watchlist' : '+ Ajouter à ma watchlist'}
+                            {isInWatch ? '✓ Dans ma médiathèque' : '+ Ajouter à ma médiathèque'}
                         </button>
                         
                         {/* Infos supplémentaires */}

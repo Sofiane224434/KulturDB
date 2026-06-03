@@ -123,7 +123,7 @@ function Watchlist() {
             
             <div className="max-w-7xl mx-auto px-3 sm:px-6 py-8 md:py-12">
                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-display uppercase tracking-wider text-gray-600 mb-6 md:mb-8">
-                    <span className="text-5xl sm:text-6xl md:text-7xl text-gray-800">M</span>a Watchlist
+                    <span className="text-5xl sm:text-6xl md:text-7xl text-gray-800">M</span>a Médiathèque
                 </h1>
 
                 <form onSubmit={handleAddManual} className="mb-6 md:mb-8 border-2 border-gray-300 bg-white p-4 md:p-6">
@@ -223,7 +223,7 @@ function Watchlist() {
                         type="submit"
                         className="mt-3 px-4 py-2 bg-black text-gray-300 border border-gray-800 font-display uppercase tracking-wider"
                     >
-                        Ajouter à ma watchlist avancée
+                        Ajouter à ma médiathèque
                     </button>
                 </form>
 
@@ -290,7 +290,7 @@ function Watchlist() {
                             Aucun élément dans cette catégorie
                         </p>
                         <p className="font-serif text-gray-600">
-                            Commencez à ajouter des films et séries à votre watchlist
+                            Commencez à ajouter des contenus à votre médiathèque
                         </p>
                     </div>
                 ) : (
