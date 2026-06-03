@@ -307,9 +307,12 @@ function Library() {
               ? progressDrafts[progressKey]
               : String(item.progressCurrent || 0);
             const parsedDraftProgress = Number.parseInt(String(inputValue || '').trim(), 10);
-            const effectiveProgressCurrent = Number.isFinite(parsedDraftProgress)
+            const effectiveProgressCurrentRaw = Number.isFinite(parsedDraftProgress)
               ? Math.max(0, parsedDraftProgress)
               : (Number.isFinite(item.progressCurrent) ? item.progressCurrent : 0);
+            const effectiveProgressCurrent = Number.isFinite(item.progressTotal) && item.progressTotal > 0
+              ? Math.min(effectiveProgressCurrentRaw, item.progressTotal)
+              : effectiveProgressCurrentRaw;
 
             return (
               <article key={`${item.type}-${item.id}`} className="border-2 border-gray-300 bg-white p-4">
@@ -391,7 +394,7 @@ function Library() {
                                 return 'Saison: information indisponible';
                               }
 
-                              return `Saison ${seasonPosition.seasonNumber}, Episode ${seasonPosition.episodeInSeason}`;
+                              return `Saison ${seasonPosition.seasonNumber} • Episode ${seasonPosition.episodeInSeason} (apercu dynamique)`;
                             })()}
                           </p>
                         )}
