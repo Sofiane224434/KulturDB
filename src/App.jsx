@@ -94,10 +94,10 @@ function App() {
                             <Route path="/auth/verify-email" element={<VerifyEmail />} />
                             <Route path="/auth/oauth-success" element={<OAuthSuccess />} />
                         </Routes>
-                        <Footer />
                     </main>
                     <LateralNav />
                 </div>
+                <Footer />
             </div>
         </Router>
     );
