@@ -32,12 +32,10 @@ function LateralNav() {
         { name: 'Films', path: '/movies' },
         { name: 'Séries', path: '/series' },
         { name: 'Anime', path: '/anime' },
-        { name: 'Base Lecture', path: '/library' },
-        { name: 'Mangas', path: '/library?type=manga' },
-        { name: 'Manwha', path: '/library?type=manwha' },
-        { name: 'Light Novels', path: '/library?type=light_novel' },
-        { name: 'Web Novels', path: '/library?type=web_novel' },
-        { name: 'Romans', path: '/library?type=roman' },
+        { name: 'Mangas', path: '/manga' },
+        { name: 'Manwha', path: '/manwha' },
+        { name: 'Light Novels', path: '/light-novels' },
+        { name: 'Romans', path: '/romans' },
         { name: 'Favoris', path: '/favorites' }
     ];
 

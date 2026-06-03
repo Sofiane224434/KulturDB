@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Link, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Link, Navigate, Routes, Route, useNavigate } from 'react-router-dom';
 import LateralNav from './components/LateralNav';
 import Footer from './components/Footer';
 import { useAuth } from './context/AuthContext';
@@ -6,11 +6,14 @@ import Home from './pages/Home';
 import Movies from './pages/Movies';
 import Series from './pages/Series';
 import Anime from './pages/Anime';
+import Manga from './pages/Manga';
+import Manwha from './pages/Manwha';
+import LightNovels from './pages/LightNovels';
+import Romans from './pages/Romans';
 import MovieDetail from './pages/MovieDetail';
 import SeriesDetail from './pages/SeriesDetail';
 import PersonDetail from './pages/PersonDetail';
 import Favorites from './pages/Favorites';
-import Watchlist from './pages/Watchlist';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
@@ -70,6 +73,10 @@ function App() {
                             <Route path="/movies" element={<Movies />} />
                             <Route path="/series" element={<Series />} />
                             <Route path="/anime" element={<Anime />} />
+                            <Route path="/manga" element={<Manga />} />
+                            <Route path="/manwha" element={<Manwha />} />
+                            <Route path="/light-novels" element={<LightNovels />} />
+                            <Route path="/romans" element={<Romans />} />
                             <Route path="/movie/:id" element={<MovieDetail />} />
                             <Route path="/series/:id" element={<SeriesDetail />} />
                             <Route path="/person/:id" element={<PersonDetail />} />
@@ -81,11 +88,8 @@ function App() {
                                     </ProtectedRoute>
                                 }
                             />
-                            <Route
-                                path="/watchlist"
-                                element={<Watchlist />}
-                            />
-                            <Route path="/library" element={<Watchlist />} />
+                            <Route path="/watchlist" element={<Navigate to="/manga" replace />} />
+                            <Route path="/library" element={<Navigate to="/manga" replace />} />
                             <Route path="/login" element={<Login />} />
                             <Route path="/register" element={<Register />} />
                             <Route path="/auth/verify-email" element={<VerifyEmail />} />

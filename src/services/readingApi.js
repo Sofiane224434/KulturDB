@@ -1,5 +1,6 @@
 const JIKAN_BASE_URL = 'https://api.jikan.moe/v4';
 const OPEN_LIBRARY_URL = 'https://openlibrary.org/search.json';
+const BANNED_ROMAN_TERMS = ['manga', 'manhwa', 'manwha', 'manhua', 'comic', 'comics', 'graphic novel'];
 
 const toJikanItem = (item, fallbackType) => ({
   id: item.mal_id,
@@ -34,6 +35,15 @@ const parseOpenLibrary = (data, typeLabel) => {
   };
 };
 
+const isLikelyNonRoman = (item) => {
+  const title = String(item?.title || '').toLowerCase();
+  const subjectParts = Array.isArray(item?.subject) ? item.subject : [];
+  const subject = subjectParts.join(' ').toLowerCase();
+  const haystack = `${title} ${subject}`;
+
+  return BANNED_ROMAN_TERMS.some((term) => haystack.includes(term));
+};
+
 export const readingApi = {
   async getMangas(page = 1) {
     const response = await fetch(`${JIKAN_BASE_URL}/top/manga?type=manga&page=${page}&sfw=true`);
@@ -62,15 +72,14 @@ export const readingApi = {
     };
   },
 
-  async getWebNovels(page = 1) {
-    const response = await fetch(`${OPEN_LIBRARY_URL}?q=web+novel&page=${page}&limit=20`);
-    const data = await response.json();
-    return parseOpenLibrary(data, 'web_novel');
-  },
-
   async getRomans(page = 1) {
-    const response = await fetch(`${OPEN_LIBRARY_URL}?subject=novel&page=${page}&limit=20`);
+    const response = await fetch(`${OPEN_LIBRARY_URL}?q=novel&page=${page}&limit=40`);
     const data = await response.json();
-    return parseOpenLibrary(data, 'roman');
+    const parsed = parseOpenLibrary(data, 'roman');
+
+    return {
+      ...parsed,
+      results: parsed.results.filter((_, idx) => !isLikelyNonRoman(data.docs[idx])).slice(0, 20),
+    };
   },
 };

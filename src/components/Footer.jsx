@@ -29,12 +29,14 @@ function Footer() {
                         </ul>
                     </div>
 
-                    {/* Ma Collection */}
+                    {/* Lecture */}
                     <div>
-                        <h4 className="font-display uppercase tracking-widest text-gray-700 mb-6 text-sm border-b border-gray-300 pb-2 inline-block">Ma Collection</h4>
+                        <h4 className="font-display uppercase tracking-widest text-gray-700 mb-6 text-sm border-b border-gray-300 pb-2 inline-block">Lecture</h4>
                         <ul className="space-y-3 text-sm text-gray-600 font-serif">
-                            <li><Link to="/library" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Bibliothèque</Link></li>
-                            <li><Link to="/favorites" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Favoris</Link></li>
+                            <li><Link to="/manga" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Mangas</Link></li>
+                            <li><Link to="/manwha" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Manwha</Link></li>
+                            <li><Link to="/light-novels" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Light Novels</Link></li>
+                            <li><Link to="/romans" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Romans</Link></li>
                         </ul>
                     </div>
 

@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
 import MediaCard from '../components/MediaCard';
+import ReadingCard from '../components/ReadingCard';
 import { tmdbService } from '../services/tmdb';
+import { readingApi } from '../services/readingApi';
 
 function Home() {
     const [movies, setMovies] = useState([]);
     const [series, setSeries] = useState([]);
     const [anime, setAnime] = useState([]);
+    const [mangas, setMangas] = useState([]);
+    const [manwha, setManwha] = useState([]);
+    const [lightNovels, setLightNovels] = useState([]);
+    const [romans, setRomans] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -16,9 +22,21 @@ function Home() {
                     tmdbService.getTrendingSeries(),
                     tmdbService.getAnime()
                 ]);
+
+                const [mangaData, manwhaData, lightNovelData, romanData] = await Promise.all([
+                    readingApi.getMangas(1),
+                    readingApi.getManwha(1),
+                    readingApi.getLightNovels(1),
+                    readingApi.getRomans(1),
+                ]);
+
                 setMovies(moviesData.results.slice(0, 8));
                 setSeries(seriesData.results.slice(0, 8));
                 setAnime(animeData.results.slice(0, 8));
+                setMangas((mangaData.results || []).slice(0, 8));
+                setManwha((manwhaData.results || []).slice(0, 8));
+                setLightNovels((lightNovelData.results || []).slice(0, 8));
+                setRomans((romanData.results || []).slice(0, 8));
             } catch (error) {
                 console.error('Erreur:', error);
             } finally {
@@ -98,6 +116,70 @@ function Home() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
                     {anime.map((item) => (
                         <MediaCard key={item.id} item={item} type="series" />
+                    ))}
+                </div>
+            </section>
+
+            <section className="mt-12 md:mt-20 mb-12 md:mb-20">
+                <div className="mb-6 md:mb-8 flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-display uppercase tracking-wider text-gray-600">
+                        <span className="text-4xl sm:text-5xl md:text-6xl text-gray-800">M</span>angas
+                    </h2>
+                    <a href="/manga" className="font-display text-xs md:text-sm uppercase tracking-widest text-gray-500 hover:text-gray-800 transition-colors border-b-2 border-gray-400 hover:border-gray-800 pb-1">
+                        Voir tout →
+                    </a>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+                    {mangas.map((item) => (
+                        <ReadingCard key={`home-manga-${item.id}`} item={item} />
+                    ))}
+                </div>
+            </section>
+
+            <section className="mb-12 md:mb-20">
+                <div className="mb-6 md:mb-8 flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-display uppercase tracking-wider text-gray-600">
+                        <span className="text-4xl sm:text-5xl md:text-6xl text-gray-800">M</span>anwha
+                    </h2>
+                    <a href="/manwha" className="font-display text-xs md:text-sm uppercase tracking-widest text-gray-500 hover:text-gray-800 transition-colors border-b-2 border-gray-400 hover:border-gray-800 pb-1">
+                        Voir tout →
+                    </a>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+                    {manwha.map((item) => (
+                        <ReadingCard key={`home-manwha-${item.id}`} item={item} />
+                    ))}
+                </div>
+            </section>
+
+            <section className="mb-12 md:mb-20">
+                <div className="mb-6 md:mb-8 flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-display uppercase tracking-wider text-gray-600">
+                        <span className="text-4xl sm:text-5xl md:text-6xl text-gray-800">L</span>ight Novels
+                    </h2>
+                    <a href="/light-novels" className="font-display text-xs md:text-sm uppercase tracking-widest text-gray-500 hover:text-gray-800 transition-colors border-b-2 border-gray-400 hover:border-gray-800 pb-1">
+                        Voir tout →
+                    </a>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+                    {lightNovels.map((item) => (
+                        <ReadingCard key={`home-light-${item.id}`} item={item} />
+                    ))}
+                </div>
+            </section>
+
+            <section>
+                <div className="mb-6 md:mb-8 flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-display uppercase tracking-wider text-gray-600">
+                        <span className="text-4xl sm:text-5xl md:text-6xl text-gray-800">R</span>omans
+                    </h2>
+                    <a href="/romans" className="font-display text-xs md:text-sm uppercase tracking-widest text-gray-500 hover:text-gray-800 transition-colors border-b-2 border-gray-400 hover:border-gray-800 pb-1">
+                        Voir tout →
+                    </a>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+                    {romans.map((item) => (
+                        <ReadingCard key={`home-roman-${item.id}`} item={item} />
                     ))}
                 </div>
             </section>
