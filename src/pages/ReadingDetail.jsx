@@ -3,6 +3,49 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import ReadingCard from '../components/ReadingCard';
 import { readingApi } from '../services/readingApi';
 
+const normalizeName = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const extractAuthorTokens = (name) => {
+  const normalized = normalizeName(name);
+  if (!normalized) {
+    return [];
+  }
+
+  return normalized
+    .split(/[\s,]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 4);
+};
+
+const isSupplementConsistentWithJikan = (mainData, mdxSupplement) => {
+  if (!mainData || !mdxSupplement) {
+    return false;
+  }
+
+  const jikanAuthors = (mainData.authors || []).map((author) => author?.name).filter(Boolean);
+  const mdxAuthors = (mdxSupplement.staff || []).map((member) => member?.name).filter(Boolean);
+
+  if (jikanAuthors.length === 0 || mdxAuthors.length === 0) {
+    return true;
+  }
+
+  const jikanTokens = new Set(jikanAuthors.flatMap((name) => extractAuthorTokens(name)));
+  const mdxTokens = new Set(mdxAuthors.flatMap((name) => extractAuthorTokens(name)));
+
+  if (jikanTokens.size === 0 || mdxTokens.size === 0) {
+    return true;
+  }
+
+  return Array.from(jikanTokens).some((token) => mdxTokens.has(token));
+};
+
 function StatBlock({ label, value }) {
   return (
     <div className="bg-white border-2 border-gray-300 p-3">
@@ -47,12 +90,16 @@ function ReadingDetail() {
             readingApi.getMangaDexSupplementByTitles(titleCandidates, id).catch(() => null),
           ]);
 
-          const frSynopsis = mdxSupplement?.descriptionFr
-            ? mdxSupplement.descriptionFr
+          const safeSupplement = isSupplementConsistentWithJikan(mainData, mdxSupplement)
+            ? mdxSupplement
+            : null;
+
+          const frSynopsis = safeSupplement?.descriptionFr
+            ? safeSupplement.descriptionFr
             : await readingApi.translateToFrench(mainData?.synopsis || mainData?.background || '');
 
           setDetail(mainData);
-          setSupplement(mdxSupplement);
+          setSupplement(safeSupplement);
           setFrenchSynopsis(frSynopsis);
           setCharacters(charsData.slice(0, 12));
           setRecommendations(recData || []);
