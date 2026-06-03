@@ -105,7 +105,7 @@ function MovieDetail() {
             <div className="max-w-7xl mx-auto px-3 sm:px-6 py-8 md:py-12">
                 <button
                     onClick={() => navigate(-1)}
-                    className="mb-6 md:mb-8 px-4 md:px-6 py-2 md:py-3 text-sm md:text-base font-display uppercase tracking-wider bg-gray-800 text-gray-400 hover:text-white transition-colors border-2 border-gray-900 inline-flex items-center gap-2"
+                    className="sticky top-2 z-30 mb-6 md:mb-8 px-4 md:px-6 py-2 md:py-3 text-sm md:text-base font-display uppercase tracking-wider bg-gray-800 text-gray-400 hover:text-white transition-colors border-2 border-gray-900 inline-flex items-center gap-2"
                 >
                     <span>←</span> Retour
                 </button>

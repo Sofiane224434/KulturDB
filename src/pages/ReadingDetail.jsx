@@ -19,6 +19,8 @@ function ReadingDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [detail, setDetail] = useState(null);
+  const [supplement, setSupplement] = useState(null);
+  const [frenchSynopsis, setFrenchSynopsis] = useState('');
   const [characters, setCharacters] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
 
@@ -31,18 +33,34 @@ function ReadingDetail() {
 
       try {
         if (isJikanType) {
-          const [mainData, charsData, recData] = await Promise.all([
-            readingApi.getJikanReadingDetails(id),
+          const mainData = await readingApi.getJikanReadingDetails(id);
+          const titleCandidates = [
+            mainData?.title,
+            ...(mainData?.titles || []).map((entry) => entry?.title),
+            mainData?.title_english,
+            mainData?.title_japanese,
+          ].filter(Boolean);
+
+          const [charsData, recData, mdxSupplement] = await Promise.all([
             readingApi.getJikanCharacters(id),
             readingApi.getJikanRecommendations(id),
+            readingApi.getMangaDexSupplementByTitles(titleCandidates),
           ]);
 
+          const frSynopsis = mdxSupplement?.descriptionFr
+            ? mdxSupplement.descriptionFr
+            : await readingApi.translateToFrench(mainData?.synopsis || mainData?.background || '');
+
           setDetail(mainData);
+          setSupplement(mdxSupplement);
+          setFrenchSynopsis(frSynopsis);
           setCharacters(charsData.slice(0, 12));
           setRecommendations(recData || []);
         } else if (type === 'roman') {
           const romanData = await readingApi.getRomanDetails(id);
           setDetail(romanData);
+          setSupplement(null);
+          setFrenchSynopsis(romanData?.synopsis || '');
           setCharacters([]);
           setRecommendations([]);
         } else {
@@ -102,20 +120,34 @@ function ReadingDetail() {
   }
 
   const title = isJikanType ? detail.title : detail.title;
-  const score = isJikanType ? detail.score : null;
-  const scoreSource = isJikanType ? 'MyAnimeList (Jikan)' : detail.source;
-  const synopsis = isJikanType ? (detail.synopsis || detail.background || '') : (detail.synopsis || '');
+  const score = isJikanType ? (supplement?.score ?? detail.score) : null;
+  const scoreSource = isJikanType ? (supplement?.scoreSource || 'MyAnimeList (Jikan)') : detail.source;
+  const synopsis = isJikanType ? (frenchSynopsis || '') : (frenchSynopsis || detail.synopsis || '');
 
   const genres = isJikanType
-    ? [...(detail.genres || []), ...(detail.themes || []), ...(detail.demographics || [])].map((g) => g.name)
+    ? [
+        ...(detail.genres || []),
+        ...(detail.themes || []),
+        ...(detail.demographics || []),
+        ...((supplement?.tags || []).map((name) => ({ name }))),
+      ].map((g) => g.name)
     : detail.subjects || [];
 
   const translations = isJikanType
-    ? (detail.titles || []).map((t) => `${t.type}: ${t.title}`)
+    ? [
+        ...(supplement?.availableTranslatedLanguageLabels || []).map((label) => `Scan: ${label}`),
+        ...(detail.titles || []).map((t) => `${t.type}: ${t.title}`),
+      ]
     : (detail.languages || []).map((lang) => `Langue: ${lang}`);
 
   const staff = isJikanType
     ? [
+        ...((supplement?.staff || []).map((member) => ({
+          id: null,
+          name: member.name,
+          role: member.role,
+          source: member.source,
+        }))),
         ...(detail.authors || []).map((a) => ({
           id: a.person?.mal_id,
           name: a.person?.name,
@@ -155,8 +187,9 @@ function ReadingDetail() {
               <StatBlock label="Note" value={score ? `${Number(score).toFixed(2)} / 10` : 'N/A'} />
               <StatBlock label="Source Note" value={scoreSource} />
               <StatBlock label="Type" value={isJikanType ? detail.type : 'Roman'} />
-              <StatBlock label="Statut" value={isJikanType ? detail.status : 'Publication'} />
-              <StatBlock label="Chapitres" value={isJikanType ? detail.chapters : 'N/A'} />
+              <StatBlock label="Statut" value={isJikanType ? (supplement?.status || detail.status) : 'Publication'} />
+              <StatBlock label="Chapitres" value={isJikanType ? (detail.chapters || 'N/A') : 'N/A'} />
+              <StatBlock label="Chapitres (Scan)" value={isJikanType ? (supplement?.scanChapterCount || 'N/A') : 'N/A'} />
               <StatBlock label="Volumes" value={isJikanType ? detail.volumes : 'N/A'} />
             </div>
           </div>
@@ -185,8 +218,8 @@ function ReadingDetail() {
               <h2 className="font-display text-xl uppercase tracking-wider text-gray-700 mb-2">Traductions Disponibles</h2>
               {translations.length > 0 ? (
                 <ul className="space-y-1 text-sm font-serif text-gray-700">
-                  {translations.slice(0, 12).map((translation) => (
-                    <li key={translation}>• {translation}</li>
+                  {translations.map((translation, index) => (
+                    <li key={`${translation}-${index}`}>• {translation}</li>
                   ))}
                 </ul>
               ) : (

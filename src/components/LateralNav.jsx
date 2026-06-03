@@ -1,12 +1,10 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { tmdbService } from '../services/tmdb';
-import { useAuth } from '../context/AuthContext';
 
 function LateralNav() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, isAuthenticated, logout } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -115,11 +113,6 @@ function LateralNav() {
     const clearHistory = () => {
         setSearchHistory([]);
         localStorage.removeItem('searchHistory');
-    };
-
-    const handleLogout = () => {
-        logout();
-        navigate('/');
     };
 
     return (
@@ -295,23 +288,6 @@ function LateralNav() {
                             </li>
                         ))}
 
-                        <li className="h-4 mt-2 border2-separator"></li>
-
-                        {isAuthenticated ? (
-                            <>
-                                <li className="px-3 py-2 text-xs font-serif text-gray-500 wrap-break-word">
-                                    Connecté: <span className="text-gray-300">{user?.displayName || user?.email}</span>
-                                </li>
-                                <li>
-                                    <button
-                                        onClick={handleLogout}
-                                        className="w-full text-left py-2 px-3 text-base font-display uppercase tracking-widest text-gray-500 hover:text-gray-300 hover:bg-gray-900 border-l-2 border-transparent hover:border-gray-500 transition-all"
-                                    >
-                                        Déconnexion
-                                    </button>
-                                </li>
-                            </>
-                        ) : null}
                     </ul>
                 </div>
                 </div>

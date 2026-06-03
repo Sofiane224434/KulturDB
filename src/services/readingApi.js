@@ -1,7 +1,46 @@
 const JIKAN_BASE_URL = 'https://api.jikan.moe/v4';
 const OPEN_LIBRARY_URL = 'https://openlibrary.org/search.json';
 const OPEN_LIBRARY_BASE_URL = 'https://openlibrary.org';
+const MANGADEX_BASE_URL = 'https://api.mangadex.org';
 const BANNED_ROMAN_TERMS = ['manga', 'manhwa', 'manwha', 'manhua', 'comic', 'comics', 'graphic novel'];
+
+const LANGUAGE_LABELS = {
+  en: 'Anglais',
+  fr: 'Français',
+  es: 'Espagnol',
+  de: 'Allemand',
+  it: 'Italien',
+  pt: 'Portugais',
+  ja: 'Japonais',
+  ko: 'Coréen',
+  zh: 'Chinois',
+  ru: 'Russe',
+  ar: 'Arabe',
+  id: 'Indonésien',
+  vi: 'Vietnamien',
+  tr: 'Turc',
+  pl: 'Polonais',
+  th: 'Thaï',
+};
+
+const normalizeText = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const pickMangaDexDescription = (description = {}) => {
+  if (description.fr) {
+    return description.fr;
+  }
+
+  if (description['fr-ro']) {
+    return description['fr-ro'];
+  }
+
+  return description.en || Object.values(description)[0] || '';
+};
 
 const toJikanItem = (item, fallbackType) => ({
   id: item.mal_id,
@@ -169,5 +208,108 @@ export const readingApi = {
       source: 'Open Library',
       raw: work,
     };
+  },
+
+  async getMangaDexSupplementByTitles(titles = []) {
+    const cleanedTitles = (titles || []).map((title) => String(title || '').trim()).filter(Boolean);
+    if (cleanedTitles.length === 0) {
+      return null;
+    }
+
+    let selected = null;
+
+    for (const title of cleanedTitles.slice(0, 4)) {
+      const response = await fetch(
+        `${MANGADEX_BASE_URL}/manga?limit=5&title=${encodeURIComponent(title)}&includes[]=author&includes[]=artist&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive`,
+      );
+      const data = await response.json();
+      const entries = Array.isArray(data?.data) ? data.data : [];
+
+      if (entries.length === 0) {
+        continue;
+      }
+
+      const normalizedTitle = normalizeText(title);
+      selected = entries.find((entry) => {
+        const mdTitles = Object.values(entry?.attributes?.title || {}).concat(Object.values(entry?.attributes?.altTitles || {}).flat());
+        const normalizedCandidates = mdTitles.map((candidate) => normalizeText(candidate));
+        return normalizedCandidates.some((candidate) => candidate === normalizedTitle || candidate.includes(normalizedTitle) || normalizedTitle.includes(candidate));
+      }) || entries[0];
+
+      if (selected) {
+        break;
+      }
+    }
+
+    if (!selected) {
+      return null;
+    }
+
+    const mangaId = selected.id;
+    const attributes = selected.attributes || {};
+    const relationships = Array.isArray(selected.relationships) ? selected.relationships : [];
+
+    const aggregateResponse = await fetch(`${MANGADEX_BASE_URL}/manga/${mangaId}/aggregate`);
+    const aggregate = await aggregateResponse.json();
+    const aggregateVolumes = aggregate?.volumes || {};
+    const chapterKeys = new Set();
+    Object.values(aggregateVolumes).forEach((volume) => {
+      Object.keys(volume?.chapters || {}).forEach((chapterKey) => chapterKeys.add(chapterKey));
+    });
+
+    const statsResponse = await fetch(`${MANGADEX_BASE_URL}/statistics/manga/${mangaId}`);
+    const statsData = await statsResponse.json();
+    const stats = statsData?.statistics?.[mangaId] || {};
+
+    const authorMembers = relationships
+      .filter((rel) => rel.type === 'author' || rel.type === 'artist')
+      .map((rel) => ({
+        id: rel.id,
+        name: rel.attributes?.name || 'Inconnu',
+        role: rel.type === 'author' ? 'Auteur' : 'Dessinateur',
+        source: 'MangaDex',
+      }));
+
+    const translatedLanguages = Array.isArray(attributes.availableTranslatedLanguages)
+      ? attributes.availableTranslatedLanguages
+      : [];
+
+    return {
+      mangaDexId: mangaId,
+      descriptionFr: pickMangaDexDescription(attributes.description || {}),
+      scanChapterCount: chapterKeys.size || null,
+      availableTranslatedLanguages: translatedLanguages,
+      availableTranslatedLanguageLabels: translatedLanguages.map((code) => LANGUAGE_LABELS[code] || code.toUpperCase()),
+      score: Number.isFinite(stats?.rating?.average) ? Number(stats.rating.average) : null,
+      scoreSource: 'MangaDex Users',
+      tags: Array.isArray(attributes.tags) ? attributes.tags.map((tag) => tag?.attributes?.name?.en).filter(Boolean) : [],
+      status: attributes.status || null,
+      year: attributes.year || null,
+      staff: authorMembers,
+    };
+  },
+
+  async translateToFrench(text) {
+    const input = String(text || '').trim();
+    if (!input) {
+      return '';
+    }
+
+    const shortened = input.length > 2500 ? `${input.slice(0, 2500)}...` : input;
+
+    try {
+      const response = await fetch(
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=fr&dt=t&q=${encodeURIComponent(shortened)}`,
+      );
+      const data = await response.json();
+
+      if (!Array.isArray(data) || !Array.isArray(data[0])) {
+        return shortened;
+      }
+
+      return data[0].map((chunk) => chunk?.[0] || '').join('').trim() || shortened;
+    } catch (error) {
+      return shortened;
+    }
   },
 };
