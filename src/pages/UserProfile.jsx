@@ -2,6 +2,66 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../services/authApi';
+import { tmdbService } from '../services/tmdb';
+
+function normalizeDetailMediaType(value) {
+  return value === 'movie' ? 'movie' : 'series';
+}
+
+function getDetailLink(entry) {
+  const mediaType = normalizeDetailMediaType(entry?.type);
+  const id = entry?.id || entry?.itemId;
+  if (!id) {
+    return null;
+  }
+
+  return mediaType === 'movie' ? `/movie/${id}` : `/series/${id}`;
+}
+
+function ActivityDetailCards({ entries, emptyLabel, metaLabel }) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return <p className="font-serif text-sm text-gray-500">{emptyLabel}</p>;
+  }
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+      {entries.map((entry, index) => {
+        const title = entry?.title || 'Titre indisponible';
+        const posterUrl = tmdbService.getImageUrl(entry?.posterPath, 'w342');
+        const detailLink = getDetailLink(entry);
+
+        const content = (
+          <article className="border border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors">
+            <div className="w-full aspect-2/3 bg-gray-200 border-b border-gray-300 overflow-hidden">
+              {posterUrl ? (
+                <img src={posterUrl} alt={title} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-500 font-display text-xs uppercase tracking-wider px-2 text-center">
+                  Affiche indisponible
+                </div>
+              )}
+            </div>
+
+            <div className="p-3">
+              <p className="font-display uppercase tracking-wider text-xs text-gray-500 mb-1">{index + 1}. {title}</p>
+              <p className="font-serif text-sm text-gray-700">{metaLabel(entry)}</p>
+            </div>
+          </article>
+        );
+
+        if (!detailLink) {
+          return <div key={`activity-card-${title}-${index}`}>{content}</div>;
+        }
+
+        return (
+          <Link key={`activity-card-${detailLink}-${index}`} to={detailLink} className="block">
+            {content}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 
 function UserProfile() {
   const { userId } = useParams();
@@ -165,68 +225,44 @@ function UserProfile() {
                     {activeDetail === 'topPicks' && (
                       <>
                         <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Detail top personnels</p>
-                        {Array.isArray(publicActivity.recentTopPicks) && publicActivity.recentTopPicks.length > 0 ? (
-                          <ul className="space-y-2">
-                            {publicActivity.recentTopPicks.map((entry, index) => (
-                              <li key={`${entry.type}-${entry.id}-${index}`} className="font-serif text-gray-700">
-                                {index + 1}. {entry.title}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="font-serif text-sm text-gray-500">Aucun top personnel visible.</p>
-                        )}
+                        <ActivityDetailCards
+                          entries={publicActivity.recentTopPicks}
+                          emptyLabel="Aucun top personnel visible."
+                          metaLabel={(entry) => String(entry?.type || 'media').toUpperCase()}
+                        />
                       </>
                     )}
 
                     {activeDetail === 'tracked' && (
                       <>
                         <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Detail elements suivis</p>
-                        {Array.isArray(publicActivity.details?.tracked) && publicActivity.details.tracked.length > 0 ? (
-                          <ul className="space-y-2">
-                            {publicActivity.details.tracked.map((entry, index) => (
-                              <li key={`tracked-${entry.type}-${entry.id}-${index}`} className="font-serif text-sm text-gray-700">
-                                {entry.title} - {entry.progressCurrent}/{entry.progressTotal || '?'} {entry.progressUnit || 'element'}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="font-serif text-sm text-gray-500">Aucun element suivi.</p>
-                        )}
+                        <ActivityDetailCards
+                          entries={publicActivity.details?.tracked}
+                          emptyLabel="Aucun element suivi."
+                          metaLabel={(entry) => `${entry?.progressCurrent || 0}/${entry?.progressTotal || '?'} ${entry?.progressUnit || 'element'}`}
+                        />
                       </>
                     )}
 
                     {activeDetail === 'completed' && (
                       <>
                         <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Detail termines</p>
-                        {Array.isArray(publicActivity.details?.completed) && publicActivity.details.completed.length > 0 ? (
-                          <ul className="space-y-2">
-                            {publicActivity.details.completed.map((entry, index) => (
-                              <li key={`completed-${entry.type}-${entry.id}-${index}`} className="font-serif text-sm text-gray-700">
-                                {entry.title}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="font-serif text-sm text-gray-500">Aucun element termine.</p>
-                        )}
+                        <ActivityDetailCards
+                          entries={publicActivity.details?.completed}
+                          emptyLabel="Aucun element termine."
+                          metaLabel={(entry) => `Type: ${String(entry?.type || 'media').toUpperCase()}`}
+                        />
                       </>
                     )}
 
                     {activeDetail === 'ratings' && (
                       <>
                         <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Detail notes</p>
-                        {Array.isArray(publicActivity.details?.ratings) && publicActivity.details.ratings.length > 0 ? (
-                          <ul className="space-y-2">
-                            {publicActivity.details.ratings.map((entry, index) => (
-                              <li key={`rating-${entry.itemId}-${index}`} className="font-serif text-sm text-gray-700">
-                                {entry.title} - {entry.value}/5
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="font-serif text-sm text-gray-500">Aucune note.</p>
-                        )}
+                        <ActivityDetailCards
+                          entries={publicActivity.details?.ratings}
+                          emptyLabel="Aucune note."
+                          metaLabel={(entry) => `Note: ${entry?.value || 0}/5`}
+                        />
                       </>
                     )}
 
@@ -242,17 +278,11 @@ function UserProfile() {
                     {activeDetail === 'comments' && (
                       <>
                         <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Detail commentaires</p>
-                        {Array.isArray(publicActivity.details?.comments) && publicActivity.details.comments.length > 0 ? (
-                          <ul className="space-y-2">
-                            {publicActivity.details.comments.map((entry, index) => (
-                              <li key={`comment-${entry.itemId}-${index}`} className="font-serif text-sm text-gray-700">
-                                {entry.title} - {entry.count} commentaire(s)
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="font-serif text-sm text-gray-500">Aucun commentaire.</p>
-                        )}
+                        <ActivityDetailCards
+                          entries={publicActivity.details?.comments}
+                          emptyLabel="Aucun commentaire."
+                          metaLabel={(entry) => `${entry?.count || 0} commentaire(s)`}
+                        />
                       </>
                     )}
                   </div>

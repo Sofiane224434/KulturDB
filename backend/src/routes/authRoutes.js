@@ -117,14 +117,18 @@ function buildPublicActivity(syncData) {
     const completedLibraryCount = library.filter((item) => item?.status === 'done').length;
     const completedWatchlistCount = watchlist.filter((item) => item?.status === 'done').length;
 
-    const titleByItemId = new Map();
+    const itemMetaByItemId = new Map();
     [...library, ...watchlist, ...topPicks].forEach((item) => {
         const key = String(item?.id || '');
         if (!key) {
             return;
         }
-        if (!titleByItemId.has(key)) {
-            titleByItemId.set(key, item?.title || item?.name || 'Titre indisponible');
+        if (!itemMetaByItemId.has(key)) {
+            itemMetaByItemId.set(key, {
+                title: item?.title || item?.name || 'Titre indisponible',
+                type: item?.type || 'movie',
+                posterPath: item?.poster_path || item?.posterPath || null,
+            });
         }
     });
 
@@ -134,6 +138,7 @@ function buildPublicActivity(syncData) {
             id: item?.id,
             type: item?.type || 'movie',
             title: item?.title || item?.name || 'Titre indisponible',
+            posterPath: item?.poster_path || item?.posterPath || null,
         }));
 
     const trackedDetails = library.slice(0, 8).map((item) => ({
@@ -144,6 +149,7 @@ function buildPublicActivity(syncData) {
         progressCurrent: Number.isFinite(item?.progressCurrent) ? item.progressCurrent : 0,
         progressTotal: Number.isFinite(item?.progressTotal) ? item.progressTotal : null,
         progressUnit: item?.progressUnit || 'element',
+        posterPath: item?.poster_path || item?.posterPath || null,
     }));
 
     const completedDetails = [...library, ...watchlist]
@@ -153,24 +159,35 @@ function buildPublicActivity(syncData) {
             id: item?.id,
             type: item?.type || 'movie',
             title: item?.title || item?.name || 'Titre indisponible',
+            posterPath: item?.poster_path || item?.posterPath || null,
         }));
 
     const ratingDetails = Object.entries(ratings)
-        .map(([itemId, value]) => ({
-            itemId,
-            value: Number(value),
-            title: titleByItemId.get(String(itemId)) || `Element ${itemId}`,
-        }))
+        .map(([itemId, value]) => {
+            const itemMeta = itemMetaByItemId.get(String(itemId));
+            return {
+                itemId,
+                value: Number(value),
+                title: itemMeta?.title || `Element ${itemId}`,
+                type: itemMeta?.type || 'movie',
+                posterPath: itemMeta?.posterPath || null,
+            };
+        })
         .filter((entry) => Number.isFinite(entry.value) && entry.value > 0)
         .sort((left, right) => right.value - left.value)
         .slice(0, 8);
 
     const commentDetails = Object.entries(comments)
-        .map(([itemId, list]) => ({
-            itemId,
-            title: titleByItemId.get(String(itemId)) || `Element ${itemId}`,
-            count: Array.isArray(list) ? list.length : 0,
-        }))
+        .map(([itemId, list]) => {
+            const itemMeta = itemMetaByItemId.get(String(itemId));
+            return {
+                itemId,
+                title: itemMeta?.title || `Element ${itemId}`,
+                type: itemMeta?.type || 'movie',
+                posterPath: itemMeta?.posterPath || null,
+                count: Array.isArray(list) ? list.length : 0,
+            };
+        })
         .filter((entry) => entry.count > 0)
         .sort((left, right) => right.count - left.count)
         .slice(0, 8);

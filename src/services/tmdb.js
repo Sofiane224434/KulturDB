@@ -19,9 +19,13 @@ const TV_SORT_MAP = {
 };
 
 const BLOCKED_TITLE_CHARS_REGEX = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af]/;
+const ANIME_RESULTS_LIMIT = 60;
 const ANIME_DISCOVER_VARIANTS = [
+  'with_genres=16',
   'with_genres=16&with_origin_country=JP',
   'with_genres=16&with_original_language=ja',
+  'with_genres=16&with_original_language=ko',
+  'with_genres=16&with_original_language=zh',
   'with_genres=16&with_origin_country=KR',
   'with_genres=16&with_origin_country=CN',
 ];
@@ -203,7 +207,7 @@ export const tmdbService = {
       mergedMap.set(item.id, item);
     }
 
-    const mergedResults = sortAnimeResults(Array.from(mergedMap.values()), sortKey).slice(0, 20);
+    const mergedResults = sortAnimeResults(Array.from(mergedMap.values()), sortKey).slice(0, ANIME_RESULTS_LIMIT);
 
     const referenceData = successfulResults[0] || {};
     const totalPages = successfulResults.reduce((maxPages, dataset) => {
