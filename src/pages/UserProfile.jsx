@@ -8,6 +8,7 @@ function UserProfile() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [profile, setProfile] = useState(null);
+  const [publicActivity, setPublicActivity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -28,11 +29,13 @@ function UserProfile() {
         const data = await authApi.getUserProfile(userId);
         if (!cancelled) {
           setProfile(data.user || null);
+          setPublicActivity(data.publicActivity || null);
         }
       } catch (err) {
         if (!cancelled) {
           setError(err.message || 'Impossible de charger ce profil.');
           setProfile(null);
+          setPublicActivity(null);
         }
       } finally {
         if (!cancelled) {
@@ -102,9 +105,61 @@ function UserProfile() {
 
             <section className="border-2 border-gray-300 bg-white p-6 md:p-10">
               <h2 className="text-2xl font-display uppercase tracking-wider text-gray-700 mb-3">Activite publique</h2>
-              <p className="font-serif text-gray-600">
-                Les tops, visionnages, commentaires et notes seront affiches ici quand la synchronisation multi-utilisateur sera activee.
-              </p>
+              {publicActivity ? (
+                <>
+                  <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 mb-4">
+                    <div className="border border-gray-300 bg-gray-50 p-4">
+                      <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Top personnels</p>
+                      <p className="text-2xl font-display uppercase tracking-wider text-gray-800">{publicActivity.counts?.topPicks || 0}</p>
+                    </div>
+                    <div className="border border-gray-300 bg-gray-50 p-4">
+                      <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Elements suivis</p>
+                      <p className="text-2xl font-display uppercase tracking-wider text-gray-800">{publicActivity.counts?.tracked || 0}</p>
+                    </div>
+                    <div className="border border-gray-300 bg-gray-50 p-4">
+                      <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Termines</p>
+                      <p className="text-2xl font-display uppercase tracking-wider text-gray-800">{publicActivity.counts?.completed || 0}</p>
+                    </div>
+                    <div className="border border-gray-300 bg-gray-50 p-4">
+                      <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Notes</p>
+                      <p className="text-2xl font-display uppercase tracking-wider text-gray-800">{publicActivity.counts?.ratings || 0}</p>
+                    </div>
+                    <div className="border border-gray-300 bg-gray-50 p-4">
+                      <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Moyenne notes</p>
+                      <p className="text-2xl font-display uppercase tracking-wider text-gray-800">
+                        {publicActivity.ratingsAverage != null ? publicActivity.ratingsAverage : '-'}
+                      </p>
+                    </div>
+                    <div className="border border-gray-300 bg-gray-50 p-4">
+                      <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Commentaires</p>
+                      <p className="text-2xl font-display uppercase tracking-wider text-gray-800">{publicActivity.counts?.comments || 0}</p>
+                    </div>
+                  </div>
+
+                  {Array.isArray(publicActivity.recentTopPicks) && publicActivity.recentTopPicks.length > 0 ? (
+                    <div className="border border-gray-300 bg-white p-4">
+                      <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Derniers tops</p>
+                      <ul className="space-y-2">
+                        {publicActivity.recentTopPicks.map((entry, index) => (
+                          <li key={`${entry.type}-${entry.id}-${index}`} className="font-serif text-gray-700">
+                            {index + 1}. {entry.title}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="font-serif text-gray-600">Aucune activite synchronisee visible pour le moment.</p>
+                  )}
+
+                  {publicActivity.syncedAt ? (
+                    <p className="font-serif text-xs text-gray-500 mt-4">
+                      Derniere synchro: {new Date(publicActivity.syncedAt).toLocaleString('fr-FR')}
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="font-serif text-gray-600">Aucune activite synchronisee visible pour le moment.</p>
+              )}
             </section>
           </>
         ) : null}

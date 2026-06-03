@@ -96,6 +96,52 @@ function toFriendListItem(row) {
     };
 }
 
+function buildPublicActivity(syncData) {
+    const library = Array.isArray(syncData?.library) ? syncData.library : [];
+    const topPicks = Array.isArray(syncData?.topPicks) ? syncData.topPicks : [];
+    const watchlist = Array.isArray(syncData?.watchlist) ? syncData.watchlist : [];
+    const ratings = syncData?.ratings && typeof syncData.ratings === 'object' ? syncData.ratings : {};
+    const comments = syncData?.comments && typeof syncData.comments === 'object' ? syncData.comments : {};
+
+    const ratingsValues = Object.values(ratings)
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value) && value > 0);
+
+    const commentsCount = Object.values(comments).reduce((total, entry) => {
+        if (!Array.isArray(entry)) {
+            return total;
+        }
+        return total + entry.length;
+    }, 0);
+
+    const completedLibraryCount = library.filter((item) => item?.status === 'done').length;
+    const completedWatchlistCount = watchlist.filter((item) => item?.status === 'done').length;
+
+    const recentTopPicks = topPicks
+        .slice(0, 6)
+        .map((item) => ({
+            id: item?.id,
+            type: item?.type || 'movie',
+            title: item?.title || item?.name || 'Titre indisponible',
+        }));
+
+    return {
+        syncedAt: syncData?.updatedAt || null,
+        counts: {
+            topPicks: topPicks.length,
+            tracked: library.length,
+            watchlist: watchlist.length,
+            completed: completedLibraryCount + completedWatchlistCount,
+            ratings: ratingsValues.length,
+            comments: commentsCount,
+        },
+        ratingsAverage: ratingsValues.length
+            ? Number((ratingsValues.reduce((sum, value) => sum + value, 0) / ratingsValues.length).toFixed(2))
+            : null,
+        recentTopPicks,
+    };
+}
+
 router.post('/register', async (req, res) => {
     const rawEmail = String(req.body?.email || '').trim().toLowerCase();
     const rawPassword = String(req.body?.password || '');
@@ -238,6 +284,9 @@ router.get('/users/:userId', requireAuth, (req, res) => {
         return res.status(404).json({ message: 'Profil introuvable.' });
     }
 
+    const syncData = getUserSyncData(userId);
+    const publicActivity = buildPublicActivity(syncData);
+
     return res.json({
         user: {
             id: user.id,
@@ -245,6 +294,7 @@ router.get('/users/:userId', requireAuth, (req, res) => {
             provider: user.provider,
             createdAt: user.created_at,
         },
+        publicActivity,
     });
 });
 
