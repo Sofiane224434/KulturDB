@@ -70,8 +70,20 @@ cd ~/apps/kulturdb
 git fetch origin
 git reset --hard origin/main
 git clean -fd -e .env
-docker compose down || true
-docker compose up -d --build
+
+# Nettoyage legacy apres rebrand (si present)
+if [ -d ~/apps/cinetech ]; then
+	cd ~/apps/cinetech
+	COMPOSE_PROJECT_NAME=cinetech docker compose down || true
+	cd ~/apps/kulturdb
+fi
+
+COMPOSE_PROJECT_NAME=kulturdb docker compose down || true
+
+# Garde-fou anti conflit de port
+docker ps --filter "publish=127.0.0.1:3003" --format '{{.ID}} {{.Names}}'
+
+COMPOSE_PROJECT_NAME=kulturdb docker compose up -d --build
 ```
 
 ## Verification
