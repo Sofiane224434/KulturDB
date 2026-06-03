@@ -23,7 +23,6 @@ const ANIME_RESULTS_LIMIT = 60;
 const ANIME_COUNTRY_WHITELIST = new Set(['JP', 'KR', 'CN', 'TW']);
 const ANIME_LANGUAGE_WHITELIST = new Set(['ja', 'ko', 'zh']);
 const ANIME_DISCOVER_VARIANTS = [
-  'with_genres=16',
   'with_genres=16&with_origin_country=JP',
   'with_genres=16&with_original_language=ja',
   'with_genres=16&with_original_language=ko',
@@ -108,10 +107,8 @@ function isLikelyAnimeItem(item) {
   const hasWhitelistedCountry = originCountries.some((country) => ANIME_COUNTRY_WHITELIST.has(country));
   const hasWhitelistedLanguage = ANIME_LANGUAGE_WHITELIST.has(originalLanguage);
 
-  // Si TMDB a des metadonnees incomplètes, on garde l'item quand son titre original contient des caracteres CJK.
-  const hasCjkTitle = hasBlockedTitleChars(item?.original_name || item?.name || '');
-
-  return hasWhitelistedCountry || hasWhitelistedLanguage || hasCjkTitle;
+  // Filtre volontairement strict: uniquement signaux geographiques/linguistiques anime.
+  return hasWhitelistedCountry || hasWhitelistedLanguage;
 }
 
 async function fetchAnimeDiscoverVariant(query, page, sortBy) {
