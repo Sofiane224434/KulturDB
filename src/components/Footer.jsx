@@ -26,7 +26,7 @@ function Footer() {
                             <li><Link to="/series" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Séries</Link></li>
                             <li><Link to="/anime" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Anime</Link></li>
                             <li><Link to="/library" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Ma Bibliothèque</Link></li>
-                            <li><Link to="/favorites" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Favoris</Link></li>
+                            <li><Link to="/profile" className="hover:text-gray-900 uppercase tracking-wider transition-colors">Profil</Link></li>
                         </ul>
                     </div>
 

@@ -151,14 +151,14 @@ function SeriesDetail() {
             {backdropUrl && (
                 <div className="relative h-48 sm:h-64 md:h-96 mb-8 md:mb-12">
                     <img src={backdropUrl} alt={series.name} className="w-full h-full object-cover grayscale opacity-40" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#f5f5f0] to-transparent"></div>
+                    <div className="absolute inset-0 bg-linear-to-t from-[#f5f5f0] to-transparent"></div>
                 </div>
             )}
 
             <div className="max-w-7xl mx-auto px-3 sm:px-6 py-8 md:py-12">
                 <button
                     onClick={() => navigate(-1)}
-                    className="sticky top-2 z-30 mb-6 md:mb-8 px-4 md:px-6 py-2 md:py-3 text-sm md:text-base font-display uppercase tracking-wider bg-gray-800 text-gray-400 hover:text-white transition-colors border-2 border-gray-900 inline-flex items-center gap-2"
+                    className="mb-6 md:mb-8 px-4 md:px-6 py-2 md:py-3 text-sm md:text-base font-display uppercase tracking-wider bg-gray-800 text-gray-400 hover:text-white transition-colors border-2 border-gray-900 inline-flex items-center gap-2"
                 >
                     <span>←</span> Retour
                 </button>
@@ -282,7 +282,7 @@ function SeriesDetail() {
 
                     {/* COLONNE DROITE */}
                     <div className="min-w-0">
-                        <h1 className="text-3xl sm:text-4xl md:text-5xl font-display uppercase tracking-wider text-gray-600 mb-4 break-words">
+                        <h1 className="text-3xl sm:text-4xl md:text-5xl font-display uppercase tracking-wider text-gray-600 mb-4 wrap-break-word">
                             {series.name}
                         </h1>
                         
@@ -381,7 +381,7 @@ function SeriesDetail() {
                                         <Link 
                                             key={actor.id} 
                                             to={`/person/${actor.id}`}
-                                            className="flex-shrink-0 w-32 group cursor-pointer"
+                                            className="shrink-0 w-32 group cursor-pointer"
                                         >
                                             {actor.profile_path ? (
                                                 <img 
@@ -428,7 +428,7 @@ function SeriesDetail() {
 
                 {series.similar && series.similar.results.length > 0 && (
                     <section className="mb-16">
-                        <h2 className="text-3xl sm:text-4xl font-display uppercase tracking-wider text-gray-600 mb-8 break-words">
+                        <h2 className="text-3xl sm:text-4xl font-display uppercase tracking-wider text-gray-600 mb-8 wrap-break-word">
                             <span className="text-4xl sm:text-5xl text-gray-800">S</span>éries similaires
                         </h2>
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-8">
@@ -442,7 +442,7 @@ function SeriesDetail() {
                 {/* Critiques TMDB */}
                 {series.reviews && series.reviews.results && series.reviews.results.length > 0 && (
                     <section className="mb-16">
-                        <h2 className="text-3xl sm:text-4xl font-display uppercase tracking-wider text-gray-600 mb-8 break-words">
+                        <h2 className="text-3xl sm:text-4xl font-display uppercase tracking-wider text-gray-600 mb-8 wrap-break-word">
                             <span className="text-4xl sm:text-5xl text-gray-800">C</span>ritiques TMDB
                         </h2>
                         <div className="space-y-6">
@@ -460,7 +460,7 @@ function SeriesDetail() {
                                     <div key={review.id} className="border-2 border-gray-400 p-6 bg-white">
                                         <div className="flex gap-4 mb-4">
                                             {/* Avatar */}
-                                            <div className="flex-shrink-0">
+                                            <div className="shrink-0">
                                                 {avatarUrl ? (
                                                     <img 
                                                         src={avatarUrl} 
@@ -549,7 +549,7 @@ function SeriesDetail() {
                 )}
 
                 <section className="border-t-2 border-gray-800 pt-12">
-                    <h2 className="text-3xl sm:text-4xl font-display uppercase tracking-wider text-gray-600 mb-8 break-words">
+                    <h2 className="text-3xl sm:text-4xl font-display uppercase tracking-wider text-gray-600 mb-8 wrap-break-word">
                         <span className="text-4xl sm:text-5xl text-gray-800">C</span>ommentaires
                     </h2>
 

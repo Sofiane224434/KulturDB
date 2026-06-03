@@ -55,6 +55,7 @@ Variables OAuth GitHub:
 - OAuth Google (si variables Google configurees)
 - OAuth GitHub (si variables GitHub configurees)
 - Route privee protegee: /favorites (redirection auto vers /login)
+- Route profil protegee: /profile (infos compte et raccourcis vers la bibliotheque)
 - Routes lecture publiques: /manga, /manwha, /light-novels, /romans
 - Bibliotheque publique active: /library (suivi visionnage/lecture sans login)
 - Alias legacy conserve: /watchlist redirige vers /library

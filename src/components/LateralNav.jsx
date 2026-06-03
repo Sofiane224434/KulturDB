@@ -1,10 +1,12 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { tmdbService } from '../services/tmdb';
 
 function LateralNav() {
     const location = useLocation();
     const navigate = useNavigate();
+    const { isAuthenticated, user } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -35,7 +37,7 @@ function LateralNav() {
         { name: 'Light Novels', path: '/light-novels' },
         { name: 'Romans', path: '/romans' },
         { name: 'Ma Bibliothèque', path: '/library' },
-        { name: 'Favoris', path: '/favorites' }
+        { name: isAuthenticated ? (user?.displayName || 'Profil') : 'Profil', path: '/profile' }
     ];
 
     // Charger l'historique

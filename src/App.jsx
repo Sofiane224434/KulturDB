@@ -21,6 +21,7 @@ import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
 import OAuthSuccess from './pages/OAuthSuccess';
 import Library from './pages/Library';
+import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function TopAuthActions() {
@@ -30,9 +31,12 @@ function TopAuthActions() {
     if (isAuthenticated) {
         return (
             <div className="flex items-center justify-end gap-3 px-4 pt-4 pb-2 md:px-8">
-                <span className="hidden sm:inline text-xs md:text-sm font-serif text-gray-600">
-                    Connecté: <span className="text-gray-900">{user?.displayName || user?.email}</span>
-                </span>
+                <Link
+                    to="/profile"
+                    className="hidden sm:inline text-xs md:text-sm font-serif text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                    Mon profil: <span className="text-gray-900">{user?.displayName || user?.email}</span>
+                </Link>
                 <button
                     onClick={() => {
                         logout();
@@ -95,6 +99,14 @@ function App() {
                             />
                             <Route path="/watchlist" element={<Navigate to="/library" replace />} />
                             <Route path="/library" element={<Library />} />
+                            <Route
+                                path="/profile"
+                                element={
+                                    <ProtectedRoute>
+                                        <Profile />
+                                    </ProtectedRoute>
+                                }
+                            />
                             <Route path="/login" element={<Login />} />
                             <Route path="/register" element={<Register />} />
                             <Route path="/auth/verify-email" element={<VerifyEmail />} />
