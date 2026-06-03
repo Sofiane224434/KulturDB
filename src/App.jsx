@@ -69,7 +69,7 @@ function App() {
         <Router>
             <div className="min-h-screen bg-[#f5f5f0] text-gray-900 font-serif">
                 <div className="flex flex-col md:flex-row md:items-start md:min-h-screen">
-                    <main className="flex-1 min-w-0 order-2 md:order-1">
+                    <main className="flex-1 min-w-0 order-2 md:order-1 overflow-x-clip">
                         <TopAuthActions />
                         <Routes>
                             <Route path="/" element={<Home />} />
@@ -94,10 +94,10 @@ function App() {
                             <Route path="/auth/verify-email" element={<VerifyEmail />} />
                             <Route path="/auth/oauth-success" element={<OAuthSuccess />} />
                         </Routes>
+                        <Footer />
                     </main>
                     <LateralNav />
                 </div>
-                <Footer />
             </div>
         </Router>
     );

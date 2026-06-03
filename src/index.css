@@ -25,11 +25,6 @@ body {
   font-family: 'Ringold', serif;
 }
 
-html, body {
-  overflow-x: hidden;
-  max-width: 100vw;
-}
-
 /* Eviter qu'un mot tres long fasse deborder le layout sur mobile */
 h1, h2, h3, h4, h5, h6, p, a, span, li {
   overflow-wrap: anywhere;
