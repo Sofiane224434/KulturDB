@@ -51,6 +51,7 @@ function Library() {
   const { getLibrary, removeFromLibrary, updateLibraryItem, refreshLibraryMetadata } = useLibrary();
   const { getTopPicks, removeFromTopPicks, moveTopPick, refreshTopPickTypes } = useTopPicks();
   const [items, setItems] = useState([]);
+  const [progressDrafts, setProgressDrafts] = useState({});
   const [topPicks, setTopPicks] = useState([]);
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -93,15 +94,28 @@ function Library() {
   };
 
   const handleStatusChange = (item, status) => {
-    const updated = updateLibraryItem(item.id, item.type, { status });
+    const maxProgress = Number.isFinite(item.progressTotal) && item.progressTotal > 0 ? item.progressTotal : null;
+    const patch = { status };
+
+    // Quand on passe en "Termine", on positionne automatiquement la progression au maximum disponible.
+    if (status === 'done' && item.type !== 'movie' && maxProgress) {
+      patch.progressCurrent = maxProgress;
+      setProgressDrafts((current) => ({
+        ...current,
+        [`${item.type}-${item.id}`]: String(maxProgress),
+      }));
+    }
+
+    const updated = updateLibraryItem(item.id, item.type, patch);
     setItems(updated);
   };
 
-  const handleProgressChange = (item, progressCurrent) => {
-    const safeValue = Number.isFinite(progressCurrent) ? Math.max(0, progressCurrent) : 0;
+  const commitProgressDraft = (item, rawValue) => {
+    const parsedValue = Number.parseInt(String(rawValue || '').trim(), 10);
+    const safeValue = Number.isFinite(parsedValue) ? Math.max(0, parsedValue) : 0;
     const maxProgress = Number.isFinite(item.progressTotal) && item.progressTotal > 0 ? item.progressTotal : null;
     const clampedValue = maxProgress ? Math.min(safeValue, maxProgress) : safeValue;
-    const nextPatch = { progressCurrent: safeValue };
+    const nextPatch = { progressCurrent: clampedValue };
 
     // Saisir une progression fait passer automatiquement l'item en cours,
     // sauf si l'utilisateur l'a deja marque comme termine.
@@ -109,10 +123,25 @@ function Library() {
       nextPatch.status = 'in_progress';
     }
 
-    nextPatch.progressCurrent = clampedValue;
+    if (maxProgress && clampedValue >= maxProgress) {
+      nextPatch.status = 'done';
+    }
 
     const updated = updateLibraryItem(item.id, item.type, nextPatch);
     setItems(updated);
+    setProgressDrafts((current) => ({
+      ...current,
+      [`${item.type}-${item.id}`]: String(clampedValue),
+    }));
+  };
+
+  const handleProgressInputChange = (item, rawValue) => {
+    // On garde la saisie telle quelle pendant la frappe pour eviter les sauts de curseur/
+    // remplacements automatiques (ex: le "0" qui revient ou disparait).
+    setProgressDrafts((current) => ({
+      ...current,
+      [`${item.type}-${item.id}`]: rawValue,
+    }));
   };
 
   const mediaTypes = useMemo(() => {
@@ -273,6 +302,10 @@ function Library() {
           {filteredItems.map((item) => {
             const posterUrl = item.poster_path ? tmdbService.getImageUrl(item.poster_path, 'w342') : item.image;
             const detailPath = item.detailPath || '#';
+            const progressKey = `${item.type}-${item.id}`;
+            const inputValue = Object.prototype.hasOwnProperty.call(progressDrafts, progressKey)
+              ? progressDrafts[progressKey]
+              : String(item.progressCurrent || 0);
 
             return (
               <article key={`${item.type}-${item.id}`} className="border-2 border-gray-300 bg-white p-4">
@@ -328,8 +361,14 @@ function Library() {
                             type="number"
                             min="0"
                             max={Number.isFinite(item.progressTotal) && item.progressTotal > 0 ? item.progressTotal : undefined}
-                            value={item.progressCurrent || 0}
-                            onChange={(event) => handleProgressChange(item, Number(event.target.value))}
+                            value={inputValue}
+                            onChange={(event) => handleProgressInputChange(item, event.target.value)}
+                            onBlur={(event) => commitProgressDraft(item, event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.currentTarget.blur();
+                              }
+                            }}
                             className="w-20 px-2 py-1 border border-gray-400 text-xs font-serif"
                           />
                           <span className="font-serif text-xs text-gray-500">

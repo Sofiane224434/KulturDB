@@ -61,6 +61,8 @@ Variables OAuth GitHub:
 - Bibliotheque publique active: /library (suivi visionnage/lecture sans login)
 - Synchronisation multi-utilisateur active pour comptes connectes: bibliotheque, tops, notes, commentaires et watchlist sont synchronises via l API auth
 - Bibliotheque: statuts (a commencer, en cours, a reprendre, termine), progression bornee au total existant, mapping saison/episode pour series/anime, et pas de progression chiffree pour les films
+- Bibliotheque: quand un element passe en statut "termine", la progression est automatiquement alignee sur le total max disponible
+- Bibliotheque: saisie manuelle de progression amelioree (validation a la sortie/Entree) pour eviter les remplacements de valeur pendant la frappe
 - Bibliotheque: rafraichissement periodique des metadonnees TMDB (episodes, saisons, durees) pour garder les compteurs plus a jour
 - Bibliotheque: recherche par titre + filtres type/statut
 - Catalogues films/series/anime: pagination avec sauts de 5 pages, acces direct par URL via `?page=...`, tri (note, alphabetique), et filtre par acteur/realisateur/equipe sur la page courante
