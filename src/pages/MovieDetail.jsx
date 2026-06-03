@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import MediaCard from '../components/MediaCard';
 import { tmdbService } from '../services/tmdb';
-import { useFavorites, useComments, useRatings, useWatchlist } from '../hooks/useLocalStorage';
+import { useFavorites, useComments, useRatings } from '../hooks/useLocalStorage';
 
 function MovieDetail() {
     const { id } = useParams();
@@ -17,11 +17,9 @@ function MovieDetail() {
     const { isFavorite, addFavorite, removeFavorite } = useFavorites();
     const { getComments, addComment, deleteComment } = useComments();
     const { getRating, setRating } = useRatings();
-    const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
     
     const [isFav, setIsFav] = useState(false);
     const [userRating, setUserRating] = useState(0);
-    const [isInWatch, setIsInWatch] = useState(false);
 
     useEffect(() => {
         const fetchMovie = async () => {
@@ -33,7 +31,6 @@ function MovieDetail() {
                 setMovie(movieData);
                 setIsFav(isFavorite(parseInt(id)));
                 setUserRating(getRating(id));
-                setIsInWatch(isInWatchlist(parseInt(id), 'movie'));
                 setComments(getComments(id));
                 
                 // Trouver la bande-annonce (français ou anglais)
@@ -80,23 +77,6 @@ function MovieDetail() {
     const handleRating = (rating) => {
         setRating(id, rating);
         setUserRating(rating);
-    };
-
-    const handleWatchlistToggle = () => {
-        if (isInWatch) {
-            removeFromWatchlist(parseInt(id), 'movie');
-        } else {
-            addToWatchlist(
-                {
-                    id: movie.id,
-                    title: movie.title,
-                    poster_path: movie.poster_path,
-                    vote_average: movie.vote_average,
-                },
-                'movie',
-            );
-        }
-        setIsInWatch(!isInWatch);
     };
 
     if (loading) {
@@ -186,12 +166,9 @@ function MovieDetail() {
                             {isFav ? '★ Retirer des favoris' : '☆ Ajouter aux favoris'}
                         </button>
                         
-                        <button
-                            onClick={handleWatchlistToggle}
-                            className="w-full mb-6 px-6 py-3 font-display uppercase tracking-wider bg-gray-700 text-gray-400 hover:text-white transition-colors border-2 border-gray-800"
-                        >
-                            {isInWatch ? '✓ Dans la bibliothèque' : '+ Ajouter à la bibliothèque'}
-                        </button>
+                        <div className="w-full mb-6 px-6 py-3 font-display uppercase tracking-wider bg-gray-700 text-gray-400 border-2 border-gray-800 text-center">
+                            Base perso désactivée temporairement
+                        </div>
                         
                         {/* Infos supplémentaires */}
                         <div className="bg-white border-2 border-gray-400 p-6">

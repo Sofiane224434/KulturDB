@@ -55,15 +55,14 @@ Variables OAuth GitHub:
 - OAuth Google (si variables Google configurees)
 - OAuth GitHub (si variables GitHub configurees)
 - Route privee protegee: /favorites (redirection auto vers /login)
-- Bibliotheque publique: /library (alias maintenu: /watchlist)
+- Base lecture publique: /library (alias maintenu: /watchlist)
 
-Bibliotheque avancee:
+Base lecture via API:
 
-- Suivi du statut: a voir/lire, en cours, deja vu/lu, revoir/relire
-- Suivi progression: episode/chapitre/tome/page + current/total
-- Entrees manuelles: manga, manwha, light novel, roman (scan disponible)
-- Notes et commentaires: appreciation personnelle + commentaire public
-- Priorite des notes: IMDb si presente, sinon TMDB
+- Categories disponibles: manga, manwha, light novel, web novel, roman
+- Sources API: Jikan/MyAnimeList (manga, manwha, light novel) et Open Library (web novel, roman)
+- Navigation par categorie + pagination publique (sans connexion)
+- Fonction de suivi personnel/bibliotheque desactivee temporairement
 
 Routes frontend ajoutees:
 

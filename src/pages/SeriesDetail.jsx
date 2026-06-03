@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import MediaCard from '../components/MediaCard';
 import Modal from '../components/Modal';
 import { tmdbService } from '../services/tmdb';
-import { useFavorites, useComments, useRatings, useWatchlist } from '../hooks/useLocalStorage';
+import { useFavorites, useComments, useRatings } from '../hooks/useLocalStorage';
 
 function SeriesDetail() {
     const { id } = useParams();
@@ -18,11 +18,9 @@ function SeriesDetail() {
     const { isFavorite, addFavorite, removeFavorite } = useFavorites();
     const { getComments, addComment, deleteComment } = useComments();
     const { getRating, setRating } = useRatings();
-    const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
     
     const [isFav, setIsFav] = useState(false);
     const [userRating, setUserRating] = useState(0);
-    const [isInWatch, setIsInWatch] = useState(false);
     const [selectedSeason, setSelectedSeason] = useState(null);
     const [seasonDetails, setSeasonDetails] = useState(null);
     const [loadingSeason, setLoadingSeason] = useState(false);
@@ -37,7 +35,6 @@ function SeriesDetail() {
                 setSeries(seriesData);
                 setIsFav(isFavorite(parseInt(id)));
                 setUserRating(getRating(id));
-                setIsInWatch(isInWatchlist(parseInt(id), 'series'));
                 setComments(getComments(id));
                 
                 // Trouver la bande-annonce (français ou anglais)
@@ -84,23 +81,6 @@ function SeriesDetail() {
     const handleRating = (rating) => {
         setRating(id, rating);
         setUserRating(rating);
-    };
-
-    const handleWatchlistToggle = () => {
-        if (isInWatch) {
-            removeFromWatchlist(parseInt(id), 'series');
-        } else {
-            addToWatchlist(
-                {
-                    id: series.id,
-                    name: series.name,
-                    poster_path: series.poster_path,
-                    vote_average: series.vote_average,
-                },
-                'series',
-            );
-        }
-        setIsInWatch(!isInWatch);
     };
 
     const handleSeasonClick = async (season) => {
@@ -208,12 +188,9 @@ function SeriesDetail() {
                             {isFav ? '★ Retirer des favoris' : '☆ Ajouter aux favoris'}
                         </button>
                         
-                        <button
-                            onClick={handleWatchlistToggle}
-                            className="w-full mb-6 px-6 py-3 font-display uppercase tracking-wider bg-gray-700 text-gray-400 hover:text-white transition-colors border-2 border-gray-800"
-                        >
-                            {isInWatch ? '✓ Dans la bibliothèque' : '+ Ajouter à la bibliothèque'}
-                        </button>
+                        <div className="w-full mb-6 px-6 py-3 font-display uppercase tracking-wider bg-gray-700 text-gray-400 border-2 border-gray-800 text-center">
+                            Base perso désactivée temporairement
+                        </div>
                         
                         {/* Infos supplémentaires */}
                         <div className="bg-white border-2 border-gray-400 p-6">
