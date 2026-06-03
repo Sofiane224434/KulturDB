@@ -1,5 +1,5 @@
 import { tmdbService } from '../services/tmdb';
-import { getCommentsSnapshot, getRatingsSnapshot, pushUserSyncPatch } from '../services/userSync';
+import { getCommentsSnapshot, getRatingsSnapshot, getRoadmapSnapshot, pushUserSyncPatch } from '../services/userSync';
 
 const JIKAN_BASE_URL = 'https://api.jikan.moe/v4';
 const ANILIST_URL = 'https://graphql.anilist.co';
@@ -771,6 +771,127 @@ export const useWatchlist = () => {
   };
 };
 
+// Hook pour gerer la roadmap personnelle (chronologique et manuelle)
+export const useRoadmap = () => {
+  const ROADMAP_KEY = 'kulturdb_roadmap';
+
+  const normalizeRoadmapItem = (item, index = 0) => ({
+    id: String(item?.id || `${Date.now()}-${index}`),
+    refId: item?.refId != null ? String(item.refId) : null,
+    type: item?.type || 'movie',
+    title: tmdbService.getSafeDisplayTitle(item?.title, item?.name, item?.original_title, item?.original_name),
+    poster_path: item?.poster_path || item?.posterPath || null,
+    image: item?.image || null,
+    progressCurrent: Number.isFinite(item?.progressCurrent) ? item.progressCurrent : 0,
+    progressTotal: Number.isFinite(item?.progressTotal) ? item.progressTotal : null,
+    progressUnit: item?.progressUnit || 'element',
+    sourceStatus: item?.sourceStatus || 'to_start',
+    plannedFor: item?.plannedFor || null,
+    createdAt: Number.isFinite(item?.createdAt) ? item.createdAt : Date.now(),
+    order: Number.isFinite(item?.order) ? item.order : index,
+  });
+
+  const getRoadmap = () => {
+    const raw = localStorage.getItem(ROADMAP_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed)
+      ? parsed.map((item, index) => normalizeRoadmapItem(item, index))
+      : [];
+  };
+
+  const saveRoadmap = (items) => {
+    const normalized = (Array.isArray(items) ? items : []).map((item, index) => normalizeRoadmapItem(item, index));
+    localStorage.setItem(ROADMAP_KEY, JSON.stringify(normalized));
+    pushUserSyncPatch({ roadmap: normalized });
+    return normalized;
+  };
+
+  const addRoadmapItem = (item, type = 'movie', plannedFor = null) => {
+    const roadmap = getRoadmap();
+    const refId = item?.id != null ? String(item.id) : null;
+    const duplicate = roadmap.find((entry) => entry.type === type && entry.refId && refId && entry.refId === refId);
+    if (duplicate) {
+      return roadmap;
+    }
+
+    const next = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      refId,
+      type,
+      title: item?.title || item?.name || 'Titre indisponible',
+      poster_path: item?.poster_path || null,
+      image: item?.image || null,
+      progressCurrent: Number.isFinite(item?.progressCurrent) ? item.progressCurrent : 0,
+      progressTotal: Number.isFinite(item?.progressTotal) ? item.progressTotal : null,
+      progressUnit: item?.progressUnit || (type === 'movie' ? 'film' : 'episode'),
+      sourceStatus: item?.status || 'to_start',
+      plannedFor,
+      createdAt: Date.now(),
+      order: roadmap.length,
+    };
+
+    return saveRoadmap([...roadmap, next]);
+  };
+
+  const addManualRoadmapItem = ({ title, type = 'movie', plannedFor = null }) => {
+    const roadmap = getRoadmap();
+    const cleanTitle = String(title || '').trim();
+    if (!cleanTitle) {
+      return roadmap;
+    }
+
+    const next = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      refId: null,
+      type,
+      title: cleanTitle,
+      poster_path: null,
+      image: null,
+      progressCurrent: 0,
+      progressTotal: null,
+      progressUnit: type === 'movie' ? 'film' : 'element',
+      sourceStatus: 'manual',
+      plannedFor,
+      createdAt: Date.now(),
+      order: roadmap.length,
+    };
+
+    return saveRoadmap([...roadmap, next]);
+  };
+
+  const removeRoadmapItem = (roadmapId) => {
+    const roadmap = getRoadmap();
+    const updated = roadmap.filter((entry) => entry.id !== String(roadmapId));
+    return saveRoadmap(updated);
+  };
+
+  const moveRoadmapItem = (roadmapId, direction = 'up') => {
+    const roadmap = getRoadmap();
+    const index = roadmap.findIndex((entry) => entry.id === String(roadmapId));
+    if (index < 0) {
+      return roadmap;
+    }
+
+    const target = direction === 'up' ? index - 1 : index + 1;
+    if (target < 0 || target >= roadmap.length) {
+      return roadmap;
+    }
+
+    const next = [...roadmap];
+    const [moved] = next.splice(index, 1);
+    next.splice(target, 0, moved);
+    return saveRoadmap(next);
+  };
+
+  return {
+    getRoadmap,
+    addRoadmapItem,
+    addManualRoadmapItem,
+    removeRoadmapItem,
+    moveRoadmapItem,
+  };
+};
+
 // Hook pour gerer la bibliotheque publique (visionnage + lecture)
 export const useLibrary = () => {
   const LIBRARY_KEY = 'kulturdb_library';
@@ -842,6 +963,7 @@ export const useLibrary = () => {
       ratings: getRatingsSnapshot(),
       comments: getCommentsSnapshot(),
       watchlist: JSON.parse(localStorage.getItem('moviedb_watchlist') || '[]'),
+      roadmap: getRoadmapSnapshot(),
     });
     return items;
   };

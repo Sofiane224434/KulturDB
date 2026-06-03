@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useUiPreferences } from '../context/UiPreferencesContext';
-import { useLibrary, useTopPicks } from '../hooks/useLocalStorage';
+import { useLibrary, useRoadmap, useTopPicks } from '../hooks/useLocalStorage';
 import { authApi } from '../services/authApi';
 import { tmdbService } from '../services/tmdb';
 import { readingApi } from '../services/readingApi';
@@ -18,26 +18,34 @@ const MEDIA_LABELS = {
   roman: 'Roman',
 };
 
-const ROADMAP_STATUSES = new Set(['to_start', 'to_resume', 'on_hold', 'paused']);
-
-function isRoadmapCandidate(item) {
-  return ROADMAP_STATUSES.has(String(item?.status || '').toLowerCase());
-}
-
 function makeMediaKey(id, type) {
   return `${String(type || 'media')}::${String(id || '')}`;
 }
 
+function toRoadmapSourceKey(item) {
+  const refId = item?.refId || item?.id;
+  if (!refId) {
+    return null;
+  }
+  return `${String(item?.type || 'media')}::${String(refId)}`;
+}
+
 function getRoadmapPath(item) {
+  const mediaId = item?.refId || item?.id;
+  const isManual = !item?.refId && item?.sourceStatus === 'manual';
+  if (!mediaId || isManual) {
+    return null;
+  }
+
   if (item?.type === 'movie') {
-    return `/movie/${item.id}`;
+    return `/movie/${mediaId}`;
   }
 
   if (item?.type === 'series' || item?.type === 'anime') {
-    return `/series/${item.id}`;
+    return `/series/${mediaId}`;
   }
 
-  return `/reading/${item?.type}/${item?.id}`;
+  return `/reading/${item?.type}/${mediaId}`;
 }
 
 function normalizeRecommendationItem(item, fallbackType = 'movie') {
@@ -65,6 +73,7 @@ function Profile() {
   const { isAuthenticated, user, logout, setUser } = useAuth();
   const { preferences, updatePreferences } = useUiPreferences();
   const { getLibrary, refreshLibraryMetadata } = useLibrary();
+  const { getRoadmap, addRoadmapItem, addManualRoadmapItem, removeRoadmapItem, moveRoadmapItem } = useRoadmap();
   const { getTopPicks, refreshTopPickTypes } = useTopPicks();
   const [displayName, setDisplayName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -79,6 +88,10 @@ function Profile() {
   const [searchingUsers, setSearchingUsers] = useState(false);
   const [friendActionId, setFriendActionId] = useState('');
   const [roadmapItems, setRoadmapItems] = useState([]);
+  const [roadmapCandidates, setRoadmapCandidates] = useState([]);
+  const [manualRoadmapTitle, setManualRoadmapTitle] = useState('');
+  const [manualRoadmapType, setManualRoadmapType] = useState('movie');
+  const [manualRoadmapDate, setManualRoadmapDate] = useState('');
   const [roadmapFilter, setRoadmapFilter] = useState('all');
   const [recommendedItems, setRecommendedItems] = useState([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
@@ -94,9 +107,21 @@ function Profile() {
     const library = getLibrary();
     setStats(computeProfileStats(library, topPicks));
     setRoadmapItems(
+      getRoadmap()
+        .sort((left, right) => {
+          const leftDate = left?.plannedFor || '9999-12-31';
+          const rightDate = right?.plannedFor || '9999-12-31';
+          const byDate = leftDate.localeCompare(rightDate);
+          if (byDate !== 0) {
+            return byDate;
+          }
+          return Number(left?.order || 0) - Number(right?.order || 0);
+        }),
+    );
+    setRoadmapCandidates(
       library
-        .filter((item) => isRoadmapCandidate(item))
-        .sort((left, right) => Number(right?.updatedAt || 0) - Number(left?.updatedAt || 0)),
+        .filter((item) => item && (item?.progressCurrent === 0 || String(item?.status || '').toLowerCase() === 'to_resume'))
+        .slice(0, 16),
     );
 
     if (!isAuthenticated) {
@@ -111,9 +136,21 @@ function Profile() {
         if (!cancelled) {
           setStats(computeProfileStats(updatedLibrary, updatedTopPicks));
           setRoadmapItems(
+            getRoadmap()
+              .sort((left, right) => {
+                const leftDate = left?.plannedFor || '9999-12-31';
+                const rightDate = right?.plannedFor || '9999-12-31';
+                const byDate = leftDate.localeCompare(rightDate);
+                if (byDate !== 0) {
+                  return byDate;
+                }
+                return Number(left?.order || 0) - Number(right?.order || 0);
+              }),
+          );
+          setRoadmapCandidates(
             updatedLibrary
-              .filter((item) => isRoadmapCandidate(item))
-              .sort((left, right) => Number(right?.updatedAt || 0) - Number(left?.updatedAt || 0)),
+              .filter((item) => item && (item?.progressCurrent === 0 || String(item?.status || '').toLowerCase() === 'to_resume'))
+              .slice(0, 16),
           );
         }
       })
@@ -207,26 +244,73 @@ function Profile() {
       try {
         const library = getLibrary();
         const topPicks = getTopPicks();
+        const roadmap = getRoadmap();
         const blocked = new Set(
-          library.map((entry) => makeMediaKey(entry.id, entry.type)),
+          [
+            ...library.map((entry) => makeMediaKey(entry.id, entry.type)),
+            ...roadmap.map((entry) => toRoadmapSourceKey(entry)).filter(Boolean),
+          ],
         );
 
-        const preferenceWeights = new Map();
-        library.forEach((entry) => {
-          const type = entry?.type || 'movie';
-          const current = preferenceWeights.get(type) || 0;
-          if (entry?.status === 'done') {
-            preferenceWeights.set(type, current + 3);
-          } else if (isRoadmapCandidate(entry)) {
-            preferenceWeights.set(type, current + 2);
-          } else {
-            preferenceWeights.set(type, current + 1);
-          }
-        });
+        const tmdbSeeds = [];
+        topPicks
+          .filter((entry) => ['movie', 'series', 'anime'].includes(entry?.type))
+          .slice(0, 4)
+          .forEach((entry) => tmdbSeeds.push({
+            id: entry.id,
+            type: entry.type === 'movie' ? 'movie' : 'series',
+            weight: 140,
+          }));
 
-        topPicks.forEach((entry) => {
-          const type = entry?.type || 'movie';
-          preferenceWeights.set(type, (preferenceWeights.get(type) || 0) + 2);
+        library
+          .filter((entry) => entry?.status === 'done' && ['movie', 'series', 'anime'].includes(entry?.type))
+          .slice(0, 4)
+          .forEach((entry) => tmdbSeeds.push({
+            id: entry.id,
+            type: entry.type === 'movie' ? 'movie' : 'series',
+            weight: 100,
+          }));
+
+        roadmap
+          .filter((entry) => ['movie', 'series', 'anime'].includes(entry?.type) && entry?.refId)
+          .slice(0, 3)
+          .forEach((entry) => tmdbSeeds.push({
+            id: entry.refId,
+            type: entry.type === 'movie' ? 'movie' : 'series',
+            weight: 80,
+          }));
+
+        const candidates = [];
+
+        const seedResults = await Promise.allSettled(
+          tmdbSeeds.map(async (seed) => {
+            const details = seed.type === 'movie'
+              ? await tmdbService.getMovieDetails(seed.id)
+              : await tmdbService.getSeriesDetails(seed.id);
+            const similar = Array.isArray(details?.similar?.results) ? details.similar.results : [];
+            return { seed, similar };
+          }),
+        );
+
+        seedResults.forEach((result) => {
+          if (result.status !== 'fulfilled') {
+            return;
+          }
+
+          const { seed, similar } = result.value;
+          similar.slice(0, 10).forEach((entry) => {
+            const normalized = normalizeRecommendationItem(entry, seed.type === 'movie' ? 'movie' : 'series');
+            const key = makeMediaKey(normalized.id, normalized.type);
+            if (!normalized.id || blocked.has(key)) {
+              return;
+            }
+
+            candidates.push({
+              ...normalized,
+              key,
+              score: seed.weight + normalized.voteAverage * 12 + Math.min(normalized.popularity, 100),
+            });
+          });
         });
 
         const [moviesRes, seriesRes, animeRes, mangaRes, manwhaRes, lightRes, romanRes] = await Promise.allSettled([
@@ -239,24 +323,23 @@ function Profile() {
           readingApi.getRomans(1),
         ]);
 
-        const candidateBuckets = [
-          { result: moviesRes, type: 'movie' },
-          { result: seriesRes, type: 'series' },
-          { result: animeRes, type: 'anime' },
-          { result: mangaRes, type: 'manga' },
-          { result: manwhaRes, type: 'manwha' },
-          { result: lightRes, type: 'light_novel' },
-          { result: romanRes, type: 'roman' },
+        const fallbackBuckets = [
+          { result: moviesRes, type: 'movie', weight: 25 },
+          { result: seriesRes, type: 'series', weight: 25 },
+          { result: animeRes, type: 'anime', weight: 30 },
+          { result: mangaRes, type: 'manga', weight: 20 },
+          { result: manwhaRes, type: 'manwha', weight: 20 },
+          { result: lightRes, type: 'light_novel', weight: 20 },
+          { result: romanRes, type: 'roman', weight: 20 },
         ];
 
-        const candidates = [];
-        candidateBuckets.forEach(({ result, type }) => {
+        fallbackBuckets.forEach(({ result, type, weight }) => {
           if (result.status !== 'fulfilled') {
             return;
           }
 
           const items = Array.isArray(result.value?.results) ? result.value.results : [];
-          items.slice(0, 12).forEach((entry) => {
+          items.slice(0, 10).forEach((entry) => {
             const normalized = normalizeRecommendationItem(entry, type);
             const key = makeMediaKey(normalized.id, normalized.type);
             if (!normalized.id || blocked.has(key)) {
@@ -266,10 +349,7 @@ function Profile() {
             candidates.push({
               ...normalized,
               key,
-              score:
-                (preferenceWeights.get(normalized.type) || 0) * 100 +
-                normalized.voteAverage * 10 +
-                Math.min(normalized.popularity, 100),
+              score: weight + normalized.voteAverage * 8 + Math.min(normalized.popularity, 100),
             });
           });
         });
@@ -419,6 +499,46 @@ function Profile() {
     }
   };
 
+  const refreshRoadmapState = () => {
+    const sorted = getRoadmap().sort((left, right) => {
+      const leftDate = left?.plannedFor || '9999-12-31';
+      const rightDate = right?.plannedFor || '9999-12-31';
+      const byDate = leftDate.localeCompare(rightDate);
+      if (byDate !== 0) {
+        return byDate;
+      }
+      return Number(left?.order || 0) - Number(right?.order || 0);
+    });
+    setRoadmapItems(sorted);
+  };
+
+  const handleAddRoadmapFromCandidate = (item) => {
+    addRoadmapItem(item, item?.type || 'movie', null);
+    refreshRoadmapState();
+  };
+
+  const handleAddManualRoadmap = (event) => {
+    event.preventDefault();
+    addManualRoadmapItem({
+      title: manualRoadmapTitle,
+      type: manualRoadmapType,
+      plannedFor: manualRoadmapDate || null,
+    });
+    setManualRoadmapTitle('');
+    setManualRoadmapDate('');
+    refreshRoadmapState();
+  };
+
+  const handleRemoveRoadmap = (roadmapId) => {
+    removeRoadmapItem(roadmapId);
+    refreshRoadmapState();
+  };
+
+  const handleMoveRoadmap = (roadmapId, direction) => {
+    moveRoadmapItem(roadmapId, direction);
+    refreshRoadmapState();
+  };
+
   return (
     <div className="vintage-frame">
       <div className="vintage-frame-top"></div>
@@ -526,10 +646,68 @@ function Profile() {
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
                   <p className="text-sm uppercase tracking-widest text-gray-500 font-display mb-1">Roadmap</p>
-                  <h2 className="text-2xl font-display uppercase tracking-wider text-gray-700">Futurs trucs a voir / lire</h2>
+                  <h2 className="text-2xl font-display uppercase tracking-wider text-gray-700">Planning chronologique a voir / lire</h2>
                 </div>
                 <span className="font-serif text-sm text-gray-500">{roadmapItems.length} element(s)</span>
               </div>
+
+              <form onSubmit={handleAddManualRoadmap} className="border border-gray-300 bg-gray-50 p-4 mb-4">
+                <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Ajouter manuellement a la roadmap</p>
+                <div className="grid md:grid-cols-[1fr_150px_170px_auto] gap-2">
+                  <input
+                    type="text"
+                    value={manualRoadmapTitle}
+                    onChange={(event) => setManualRoadmapTitle(event.target.value)}
+                    placeholder="Titre a planifier"
+                    className="px-3 py-2 border border-gray-400 bg-white text-gray-800 font-serif"
+                  />
+                  <select
+                    value={manualRoadmapType}
+                    onChange={(event) => setManualRoadmapType(event.target.value)}
+                    className="px-3 py-2 border border-gray-400 bg-white text-gray-800 font-serif"
+                  >
+                    <option value="movie">Film</option>
+                    <option value="series">Serie</option>
+                    <option value="anime">Anime</option>
+                    <option value="manga">Manga</option>
+                    <option value="manwha">Manwha</option>
+                    <option value="light_novel">Light Novel</option>
+                    <option value="roman">Roman</option>
+                  </select>
+                  <input
+                    type="date"
+                    value={manualRoadmapDate}
+                    onChange={(event) => setManualRoadmapDate(event.target.value)}
+                    className="px-3 py-2 border border-gray-400 bg-white text-gray-800 font-serif"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-black text-gray-300 border border-gray-800 font-display uppercase tracking-wider text-xs"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+              </form>
+
+              {roadmapCandidates.length > 0 ? (
+                <div className="border border-gray-300 bg-gray-50 p-4 mb-4">
+                  <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Options rapides (0 episode ou a reprendre)</p>
+                  <div className="grid md:grid-cols-2 gap-2">
+                    {roadmapCandidates.slice(0, 8).map((item) => (
+                      <div key={makeMediaKey(item.id, item.type)} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-2">
+                        <p className="font-serif text-sm text-gray-700 line-clamp-1">{item.title}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleAddRoadmapFromCandidate(item)}
+                          className="px-3 py-1 border border-gray-400 bg-white text-gray-700 font-display uppercase tracking-wider text-xs"
+                        >
+                          Ajouter
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="flex flex-wrap gap-2 mb-4">
                 {roadmapFilters.map((filterValue) => (
@@ -550,22 +728,72 @@ function Profile() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {filteredRoadmapItems.slice(0, 20).map((item, index) => {
                     const posterUrl = getRoadmapPosterUrl(item);
+                    const detailPath = getRoadmapPath(item);
                     return (
-                      <Link key={makeMediaKey(item.id, item.type)} to={getRoadmapPath(item)} className="block border border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors">
-                        <div className="aspect-2/3 bg-gray-200 border-b border-gray-300 overflow-hidden">
-                          {posterUrl ? (
-                            <img src={posterUrl} alt={item.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-500 font-display text-xs uppercase tracking-wider px-2 text-center">
-                              Affiche indisponible
+                      <div key={item.id} className="block border border-gray-300 bg-gray-50 transition-colors">
+                        {detailPath ? (
+                          <Link to={detailPath} className="block hover:bg-gray-100 transition-colors">
+                            <div className="aspect-2/3 bg-gray-200 border-b border-gray-300 overflow-hidden">
+                              {posterUrl ? (
+                                <img src={posterUrl} alt={item.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-500 font-display text-xs uppercase tracking-wider px-2 text-center">
+                                  Affiche indisponible
+                                </div>
+                              )}
                             </div>
-                          )}
+                            <div className="p-3">
+                              <p className="font-display text-xs uppercase tracking-wider text-gray-500 mb-1">{index + 1}. {item.title}</p>
+                              <p className="font-serif text-sm text-gray-700">{MEDIA_LABELS[item.type] || item.type}</p>
+                              <p className="font-serif text-xs text-gray-500 mt-1">
+                                {item?.plannedFor ? `Prevu le ${new Date(item.plannedFor).toLocaleDateString('fr-FR')}` : 'Sans date'}
+                              </p>
+                            </div>
+                          </Link>
+                        ) : (
+                          <div className="block">
+                            <div className="aspect-2/3 bg-gray-200 border-b border-gray-300 overflow-hidden">
+                              {posterUrl ? (
+                                <img src={posterUrl} alt={item.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-500 font-display text-xs uppercase tracking-wider px-2 text-center">
+                                  Affiche indisponible
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-3">
+                              <p className="font-display text-xs uppercase tracking-wider text-gray-500 mb-1">{index + 1}. {item.title}</p>
+                              <p className="font-serif text-sm text-gray-700">{MEDIA_LABELS[item.type] || item.type}</p>
+                              <p className="font-serif text-xs text-gray-500 mt-1">
+                                {item?.plannedFor ? `Prevu le ${new Date(item.plannedFor).toLocaleDateString('fr-FR')}` : 'Sans date'}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        <div className="px-3 pb-3 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveRoadmap(item.id, 'up')}
+                            className="px-2 py-1 border border-gray-400 bg-white text-gray-700 font-display uppercase tracking-wider text-[10px]"
+                          >
+                            Monter
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveRoadmap(item.id, 'down')}
+                            className="px-2 py-1 border border-gray-400 bg-white text-gray-700 font-display uppercase tracking-wider text-[10px]"
+                          >
+                            Descendre
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveRoadmap(item.id)}
+                            className="px-2 py-1 border border-gray-400 bg-white text-gray-700 font-display uppercase tracking-wider text-[10px]"
+                          >
+                            Retirer
+                          </button>
                         </div>
-                        <div className="p-3">
-                          <p className="font-display text-xs uppercase tracking-wider text-gray-500 mb-1">{index + 1}. {item.title}</p>
-                          <p className="font-serif text-sm text-gray-700">{MEDIA_LABELS[item.type] || item.type}</p>
-                        </div>
-                      </Link>
+                      </div>
                     );
                   })}
                 </div>
@@ -574,15 +802,16 @@ function Profile() {
               )}
 
               <div className="mt-6 border border-gray-300 bg-gray-50 p-4">
-                <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">5 nouvelles idees basees sur ton vu/lu + roadmap</p>
+                <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">5 recommandations plus pertinentes (tops + termines + similaires)</p>
                 {loadingRecommendations ? (
                   <p className="font-serif text-sm text-gray-500">Calcul des recommandations...</p>
                 ) : recommendedItems.length > 0 ? (
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     {recommendedItems.map((item, index) => {
                       const posterUrl = getRoadmapPosterUrl(item);
+                      const detailPath = getRoadmapPath(item);
                       return (
-                        <Link key={item.key} to={getRoadmapPath(item)} className="block border border-gray-300 bg-white hover:bg-gray-100 transition-colors">
+                        <Link key={item.key} to={detailPath || '/'} className="block border border-gray-300 bg-white hover:bg-gray-100 transition-colors">
                           <div className="aspect-2/3 bg-gray-200 border-b border-gray-300 overflow-hidden">
                             {posterUrl ? (
                               <img src={posterUrl} alt={item.title} className="w-full h-full object-cover" />

@@ -78,3 +78,12 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_friendships_status ON friendships(status);
   CREATE INDEX IF NOT EXISTS idx_user_sync_updated_at ON user_sync_data(updated_at);
 `);
+
+const userSyncColumns = db
+  .prepare("PRAGMA table_info('user_sync_data')")
+  .all()
+  .map((column) => column.name);
+
+if (!userSyncColumns.includes('roadmap_json')) {
+  db.exec("ALTER TABLE user_sync_data ADD COLUMN roadmap_json TEXT NOT NULL DEFAULT '[]'");
+}

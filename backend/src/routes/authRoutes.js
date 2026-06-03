@@ -100,13 +100,12 @@ function buildPublicActivity(syncData) {
     const library = Array.isArray(syncData?.library) ? syncData.library : [];
     const topPicks = Array.isArray(syncData?.topPicks) ? syncData.topPicks : [];
     const watchlist = Array.isArray(syncData?.watchlist) ? syncData.watchlist : [];
+    const roadmap = Array.isArray(syncData?.roadmap) ? syncData.roadmap : [];
     const ratings = syncData?.ratings && typeof syncData.ratings === 'object' ? syncData.ratings : {};
     const comments = syncData?.comments && typeof syncData.comments === 'object' ? syncData.comments : {};
 
     const isPublicComment = (entry) => entry?.visibility !== 'private';
-    const isRoadmapStatus = (status) => ['to_start', 'to_resume', 'on_hold', 'paused'].includes(String(status || '').toLowerCase());
-    const roadmapCandidates = [...library, ...watchlist]
-        .filter((item) => item && isRoadmapStatus(item.status));
+    const roadmapCandidates = roadmap.filter((item) => item);
 
     const ratingsValues = Object.values(ratings)
         .map((value) => Number(value))
@@ -123,7 +122,7 @@ function buildPublicActivity(syncData) {
     const completedWatchlistCount = watchlist.filter((item) => item?.status === 'done').length;
 
     const itemMetaByItemId = new Map();
-    [...library, ...watchlist, ...topPicks].forEach((item) => {
+    [...library, ...watchlist, ...topPicks, ...roadmap].forEach((item) => {
         const key = String(item?.id || '');
         if (!key) {
             return;
@@ -158,7 +157,8 @@ function buildPublicActivity(syncData) {
     }));
 
     const roadmapDetails = roadmapCandidates.slice(0, 12).map((item) => ({
-        id: item?.id,
+        id: item?.refId || item?.id,
+        roadmapId: item?.id || null,
         type: item?.type || 'movie',
         title: item?.title || item?.name || 'Titre indisponible',
         status: item?.status || 'to_start',
@@ -342,6 +342,10 @@ router.put('/sync-data', requireAuth, (req, res) => {
 
     if (Object.prototype.hasOwnProperty.call(body, 'watchlist') && Array.isArray(body.watchlist)) {
         payload.watchlist = body.watchlist;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'roadmap') && Array.isArray(body.roadmap)) {
+        payload.roadmap = body.roadmap;
     }
 
     if (Object.keys(payload).length === 0) {

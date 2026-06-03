@@ -296,7 +296,7 @@ export function listOutgoingFriendRequests(userId) {
 export function getUserSyncData(userId) {
     const row = db
         .prepare(
-            `SELECT user_id, library_json, top_picks_json, ratings_json, comments_json, watchlist_json, updated_at
+            `SELECT user_id, library_json, top_picks_json, ratings_json, comments_json, watchlist_json, roadmap_json, updated_at
              FROM user_sync_data
              WHERE user_id = ?`,
         )
@@ -310,6 +310,7 @@ export function getUserSyncData(userId) {
             ratings: {},
             comments: {},
             watchlist: [],
+            roadmap: [],
             updatedAt: null,
         };
     }
@@ -321,6 +322,7 @@ export function getUserSyncData(userId) {
         ratings: parseJsonSafe(row.ratings_json, {}),
         comments: parseJsonSafe(row.comments_json, {}),
         watchlist: parseJsonSafe(row.watchlist_json, []),
+        roadmap: parseJsonSafe(row.roadmap_json, []),
         updatedAt: row.updated_at,
     };
 }
@@ -338,17 +340,19 @@ export function upsertUserSyncData(userId, patch = {}) {
             ? patch.comments
             : current.comments,
         watchlist: Array.isArray(patch.watchlist) ? patch.watchlist : current.watchlist,
+        roadmap: Array.isArray(patch.roadmap) ? patch.roadmap : current.roadmap,
     };
 
     db.prepare(
-        `INSERT INTO user_sync_data (user_id, library_json, top_picks_json, ratings_json, comments_json, watchlist_json, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+        `INSERT INTO user_sync_data (user_id, library_json, top_picks_json, ratings_json, comments_json, watchlist_json, roadmap_json, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
          ON CONFLICT(user_id) DO UPDATE SET
             library_json = excluded.library_json,
             top_picks_json = excluded.top_picks_json,
             ratings_json = excluded.ratings_json,
             comments_json = excluded.comments_json,
             watchlist_json = excluded.watchlist_json,
+            roadmap_json = excluded.roadmap_json,
             updated_at = datetime('now')`,
     ).run(
         userId,
@@ -357,6 +361,7 @@ export function upsertUserSyncData(userId, patch = {}) {
         JSON.stringify(next.ratings),
         JSON.stringify(next.comments),
         JSON.stringify(next.watchlist),
+        JSON.stringify(next.roadmap),
     );
 
     return getUserSyncData(userId);

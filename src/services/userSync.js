@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   ratings: 'moviedb_ratings',
   comments: 'kulturdb_comments_map',
   watchlist: 'moviedb_watchlist',
+  roadmap: 'kulturdb_roadmap',
 };
 
 function hasAuthToken() {
@@ -82,6 +83,10 @@ export async function pullAndHydrateUserSyncData() {
       localStorage.setItem(STORAGE_KEYS.watchlist, JSON.stringify(syncData.watchlist));
     }
 
+    if (Array.isArray(syncData.roadmap)) {
+      localStorage.setItem(STORAGE_KEYS.roadmap, JSON.stringify(syncData.roadmap));
+    }
+
     return syncData;
   } catch (_error) {
     return null;
@@ -111,4 +116,8 @@ export function getCommentsSnapshot() {
   }
 
   return collectCommentsMapFromLegacyKeys();
+}
+
+export function getRoadmapSnapshot() {
+  return parseJsonSafe(localStorage.getItem(STORAGE_KEYS.roadmap), []);
 }

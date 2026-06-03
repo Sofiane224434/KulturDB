@@ -73,8 +73,8 @@ Variables OAuth GitHub:
 - Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, et gestion d amis depuis /profile (compte connecte)
 - Commentaires films/series: choix de visibilite `public` ou `prive` a la publication
 - Activite publique profil: seuls les commentaires `public` sont pris en compte dans les compteurs/details visibles par les autres
-- Profil: roadmap personnelle des futurs contenus a voir/lire (vue globale + filtres par categorie)
-- Profil: 5 recommandations automatiques basees sur l historique vu/lu et la roadmap
+- Profil: roadmap personnelle manuelle et chronologique des futurs contenus a voir/lire (ajout libre + filtres par categorie + options rapides depuis les elements a 0 progression / a reprendre)
+- Profil: 5 recommandations automatiques ameliorees (tops + contenus termines + suggestions similaires) en excluant ce qui est deja vu ou deja planifie
 - Profil: acces au profil d un autre utilisateur depuis la recherche/les listes d amis (`/profile/:userId`)
 - Profil utilisateur public (`/profile/:userId`): affichage de l activite synchronisee (tops, suivi, notes, commentaires, moyenne)
 - Profil utilisateur public (`/profile/:userId`): details visibles pour tops/suivi/termines/notes/commentaires (pas seulement les compteurs)
