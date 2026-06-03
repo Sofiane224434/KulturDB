@@ -394,7 +394,7 @@ function Library() {
                                 return 'Saison: information indisponible';
                               }
 
-                              return `Saison ${seasonPosition.seasonNumber} • Episode ${seasonPosition.episodeInSeason} (apercu dynamique)`;
+                              return `Saison ${seasonPosition.seasonNumber} • Episode ${seasonPosition.episodeInSeason}`;
                             })()}
                           </p>
                         )}
