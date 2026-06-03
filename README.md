@@ -73,6 +73,7 @@ Variables OAuth GitHub:
 - Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, et gestion d amis depuis /profile (compte connecte)
 - Profil: acces au profil d un autre utilisateur depuis la recherche/les listes d amis (`/profile/:userId`)
 - Profil utilisateur public (`/profile/:userId`): affichage de l activite synchronisee (tops, suivi, notes, commentaires, moyenne)
+- Profil utilisateur public (`/profile/:userId`): details visibles pour tops/suivi/termines/notes/commentaires (pas seulement les compteurs)
 - Navigation: sidebar desktop repliable/depliable avec memorisation locale de l etat (bouton flottant "Menu" retire)
 - Profil amis: l email des autres utilisateurs est masque (recherche, amis, demandes), recherche par pseudo uniquement
 - Profil: le temps regarde est affiche en mois / jours / heures

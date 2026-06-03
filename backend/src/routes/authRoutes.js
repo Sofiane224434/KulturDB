@@ -117,6 +117,17 @@ function buildPublicActivity(syncData) {
     const completedLibraryCount = library.filter((item) => item?.status === 'done').length;
     const completedWatchlistCount = watchlist.filter((item) => item?.status === 'done').length;
 
+    const titleByItemId = new Map();
+    [...library, ...watchlist, ...topPicks].forEach((item) => {
+        const key = String(item?.id || '');
+        if (!key) {
+            return;
+        }
+        if (!titleByItemId.has(key)) {
+            titleByItemId.set(key, item?.title || item?.name || 'Titre indisponible');
+        }
+    });
+
     const recentTopPicks = topPicks
         .slice(0, 6)
         .map((item) => ({
@@ -124,6 +135,45 @@ function buildPublicActivity(syncData) {
             type: item?.type || 'movie',
             title: item?.title || item?.name || 'Titre indisponible',
         }));
+
+    const trackedDetails = library.slice(0, 8).map((item) => ({
+        id: item?.id,
+        type: item?.type || 'movie',
+        title: item?.title || item?.name || 'Titre indisponible',
+        status: item?.status || 'to_start',
+        progressCurrent: Number.isFinite(item?.progressCurrent) ? item.progressCurrent : 0,
+        progressTotal: Number.isFinite(item?.progressTotal) ? item.progressTotal : null,
+        progressUnit: item?.progressUnit || 'element',
+    }));
+
+    const completedDetails = [...library, ...watchlist]
+        .filter((item) => item?.status === 'done')
+        .slice(0, 8)
+        .map((item) => ({
+            id: item?.id,
+            type: item?.type || 'movie',
+            title: item?.title || item?.name || 'Titre indisponible',
+        }));
+
+    const ratingDetails = Object.entries(ratings)
+        .map(([itemId, value]) => ({
+            itemId,
+            value: Number(value),
+            title: titleByItemId.get(String(itemId)) || `Element ${itemId}`,
+        }))
+        .filter((entry) => Number.isFinite(entry.value) && entry.value > 0)
+        .sort((left, right) => right.value - left.value)
+        .slice(0, 8);
+
+    const commentDetails = Object.entries(comments)
+        .map(([itemId, list]) => ({
+            itemId,
+            title: titleByItemId.get(String(itemId)) || `Element ${itemId}`,
+            count: Array.isArray(list) ? list.length : 0,
+        }))
+        .filter((entry) => entry.count > 0)
+        .sort((left, right) => right.count - left.count)
+        .slice(0, 8);
 
     return {
         syncedAt: syncData?.updatedAt || null,
@@ -139,6 +189,12 @@ function buildPublicActivity(syncData) {
             ? Number((ratingsValues.reduce((sum, value) => sum + value, 0) / ratingsValues.length).toFixed(2))
             : null,
         recentTopPicks,
+        details: {
+            tracked: trackedDetails,
+            completed: completedDetails,
+            ratings: ratingDetails,
+            comments: commentDetails,
+        },
     };
 }
 
