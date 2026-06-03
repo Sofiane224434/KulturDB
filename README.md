@@ -59,6 +59,7 @@ Variables OAuth GitHub:
 - Routes lecture publiques: /manga, /manwha, /light-novels, /romans
 - Barre de recherche: filtres disponibles pour films, series, anime, manga, manwha, light novel et roman
 - Bibliotheque publique active: /library (suivi visionnage/lecture sans login)
+- Synchronisation multi-utilisateur active pour comptes connectes: bibliotheque, tops, notes, commentaires et watchlist sont synchronises via l API auth
 - Bibliotheque: statuts (a commencer, en cours, a reprendre, termine), progression bornee au total existant, mapping saison/episode pour series/anime, et pas de progression chiffree pour les films
 - Bibliotheque: rafraichissement periodique des metadonnees TMDB (episodes, saisons, durees) pour garder les compteurs plus a jour
 - Bibliotheque: recherche par titre + filtres type/statut
@@ -69,7 +70,7 @@ Variables OAuth GitHub:
 - Alias legacy conserve: /watchlist redirige vers /library
 - Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, et gestion d amis depuis /profile (compte connecte)
 - Profil: acces au profil d un autre utilisateur depuis la recherche/les listes d amis (`/profile/:userId`)
-- Navigation: sidebar desktop repliable/depliable avec memorisation locale de l etat
+- Navigation: sidebar desktop repliable/depliable avec memorisation locale de l etat (bouton flottant "Menu" retire)
 - Profil amis: l email des autres utilisateurs est masque (recherche, amis, demandes), recherche par pseudo uniquement
 - Profil: le temps regarde est affiche en mois / jours / heures
 - Bibliotheque/Tops: reclassification automatique des anciens anime stockes par erreur comme series lors du rafraichissement TMDB
@@ -104,6 +105,8 @@ Routes API auth:
 - POST /api/auth/register
 - POST /api/auth/login
 - GET /api/auth/me
+- GET /api/auth/sync-data
+- PUT /api/auth/sync-data
 - PATCH /api/auth/me/display-name
 - GET /api/auth/users/search?query=...
 - GET /api/auth/users/:userId

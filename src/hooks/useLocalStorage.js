@@ -1,4 +1,5 @@
 import { tmdbService } from '../services/tmdb';
+import { getCommentsSnapshot, getRatingsSnapshot, pushUserSyncPatch } from '../services/userSync';
 
 const JIKAN_BASE_URL = 'https://api.jikan.moe/v4';
 const ANILIST_URL = 'https://graphql.anilist.co';
@@ -460,6 +461,7 @@ export const useTopPicks = () => {
 
   const saveTopPicks = (topPicks) => {
     localStorage.setItem(TOP_PICKS_KEY, JSON.stringify(topPicks));
+    pushUserSyncPatch({ topPicks });
     return topPicks;
   };
 
@@ -581,6 +583,10 @@ export const useFavorites = () => {
 
 // Hook pour gérer les commentaires
 export const useComments = () => {
+  const syncComments = () => {
+    pushUserSyncPatch({ comments: getCommentsSnapshot() });
+  };
+
   const getComments = (itemId) => {
     const comments = localStorage.getItem(`moviedb_comments_${itemId}`);
     return comments ? JSON.parse(comments) : [];
@@ -597,6 +603,7 @@ export const useComments = () => {
     };
     const updated = [...comments, newComment];
     localStorage.setItem(`moviedb_comments_${itemId}`, JSON.stringify(updated));
+    syncComments();
     return updated;
   };
 
@@ -604,6 +611,7 @@ export const useComments = () => {
     const comments = getComments(itemId);
     const updated = comments.filter(c => c.id !== commentId && c.parentId !== commentId);
     localStorage.setItem(`moviedb_comments_${itemId}`, JSON.stringify(updated));
+    syncComments();
     return updated;
   };
 
@@ -626,6 +634,7 @@ export const useRatings = () => {
     const ratings = getRatings();
     ratings[itemId] = rating;
     localStorage.setItem('moviedb_ratings', JSON.stringify(ratings));
+    pushUserSyncPatch({ ratings });
     return rating;
   };
 
@@ -633,6 +642,7 @@ export const useRatings = () => {
     const ratings = getRatings();
     delete ratings[itemId];
     localStorage.setItem('moviedb_ratings', JSON.stringify(ratings));
+    pushUserSyncPatch({ ratings });
   };
 
   return { getRating, setRating, removeRating, getRatings };
@@ -661,13 +671,18 @@ export const useWatchlist = () => {
     return parsed.map(normalizeItem);
   };
 
+  const saveWatchlist = (items) => {
+    localStorage.setItem('moviedb_watchlist', JSON.stringify(items));
+    pushUserSyncPatch({ watchlist: items });
+    return items;
+  };
+
   const addToWatchlist = (item, type) => {
     const watchlist = getWatchlist();
     const defaultUnit = type === 'movie' ? 'film' : 'episode';
     const newItem = normalizeItem({ ...item, type, addedAt: Date.now(), status: 'to_start', progressUnit: defaultUnit });
     const updated = [...watchlist, newItem];
-    localStorage.setItem('moviedb_watchlist', JSON.stringify(updated));
-    return updated;
+    return saveWatchlist(updated);
   };
 
   const addManualEntry = (payload) => {
@@ -695,8 +710,7 @@ export const useWatchlist = () => {
     });
 
     const updated = [...watchlist, newItem];
-    localStorage.setItem('moviedb_watchlist', JSON.stringify(updated));
-    return updated;
+    return saveWatchlist(updated);
   };
 
   const removeFromWatchlist = (id, type = null) => {
@@ -707,8 +721,7 @@ export const useWatchlist = () => {
       }
       return item.id !== id;
     });
-    localStorage.setItem('moviedb_watchlist', JSON.stringify(updated));
-    return updated;
+    return saveWatchlist(updated);
   };
 
   const updateWatchlistStatus = (id, status, type = null) => {
@@ -716,8 +729,7 @@ export const useWatchlist = () => {
     const updated = watchlist.map(item => 
       (type ? item.id === id && item.type === type : item.id === id) ? { ...item, status } : item
     );
-    localStorage.setItem('moviedb_watchlist', JSON.stringify(updated));
-    return updated;
+    return saveWatchlist(updated);
   };
 
   const updateWatchlistItem = (id, patch, type = null) => {
@@ -729,8 +741,7 @@ export const useWatchlist = () => {
       }
       return normalizeItem({ ...item, ...patch });
     });
-    localStorage.setItem('moviedb_watchlist', JSON.stringify(updated));
-    return updated;
+    return saveWatchlist(updated);
   };
 
   const isInWatchlist = (id, type = null) => {
@@ -814,6 +825,13 @@ export const useLibrary = () => {
 
   const saveLibrary = (items) => {
     localStorage.setItem(LIBRARY_KEY, JSON.stringify(items));
+    pushUserSyncPatch({
+      library: items,
+      topPicks: JSON.parse(localStorage.getItem('kulturdb_top_picks') || '[]'),
+      ratings: getRatingsSnapshot(),
+      comments: getCommentsSnapshot(),
+      watchlist: JSON.parse(localStorage.getItem('moviedb_watchlist') || '[]'),
+    });
     return items;
   };
 

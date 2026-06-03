@@ -58,6 +58,17 @@ db.exec(`
     FOREIGN KEY (addressee_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS user_sync_data (
+    user_id INTEGER PRIMARY KEY,
+    library_json TEXT NOT NULL DEFAULT '[]',
+    top_picks_json TEXT NOT NULL DEFAULT '[]',
+    ratings_json TEXT NOT NULL DEFAULT '{}',
+    comments_json TEXT NOT NULL DEFAULT '{}',
+    watchlist_json TEXT NOT NULL DEFAULT '[]',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   CREATE INDEX IF NOT EXISTS idx_tokens_token ON email_verification_tokens(token);
   CREATE INDEX IF NOT EXISTS idx_pending_email ON pending_registrations(email);
@@ -65,4 +76,5 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_friendships_requester ON friendships(requester_id);
   CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id);
   CREATE INDEX IF NOT EXISTS idx_friendships_status ON friendships(status);
+  CREATE INDEX IF NOT EXISTS idx_user_sync_updated_at ON user_sync_data(updated_at);
 `);

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { authApi } from '../services/authApi';
+import { pullAndHydrateUserSyncData } from '../services/userSync';
 
 const AuthContext = createContext(null);
 
@@ -23,6 +24,14 @@ export function AuthProvider({ children }) {
             })
             .finally(() => setLoading(false));
     }, []);
+
+    useEffect(() => {
+        if (!user?.id) {
+            return;
+        }
+
+        pullAndHydrateUserSyncData();
+    }, [user?.id]);
 
     const loginFromPayload = (payload) => {
         localStorage.setItem('authToken', payload.token);

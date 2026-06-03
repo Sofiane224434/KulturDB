@@ -1,5 +1,17 @@
 import { db } from '../db.js';
 
+function parseJsonSafe(value, fallback) {
+    if (typeof value !== 'string') {
+        return fallback;
+    }
+
+    try {
+        return JSON.parse(value);
+    } catch (_error) {
+        return fallback;
+    }
+}
+
 export function findUserByEmail(email) {
     return db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase());
 }
@@ -279,4 +291,73 @@ export function listOutgoingFriendRequests(userId) {
              ORDER BY datetime(f.created_at) DESC`,
         )
         .all(userId);
+}
+
+export function getUserSyncData(userId) {
+    const row = db
+        .prepare(
+            `SELECT user_id, library_json, top_picks_json, ratings_json, comments_json, watchlist_json, updated_at
+             FROM user_sync_data
+             WHERE user_id = ?`,
+        )
+        .get(userId);
+
+    if (!row) {
+        return {
+            userId,
+            library: [],
+            topPicks: [],
+            ratings: {},
+            comments: {},
+            watchlist: [],
+            updatedAt: null,
+        };
+    }
+
+    return {
+        userId: row.user_id,
+        library: parseJsonSafe(row.library_json, []),
+        topPicks: parseJsonSafe(row.top_picks_json, []),
+        ratings: parseJsonSafe(row.ratings_json, {}),
+        comments: parseJsonSafe(row.comments_json, {}),
+        watchlist: parseJsonSafe(row.watchlist_json, []),
+        updatedAt: row.updated_at,
+    };
+}
+
+export function upsertUserSyncData(userId, patch = {}) {
+    const current = getUserSyncData(userId);
+
+    const next = {
+        library: Array.isArray(patch.library) ? patch.library : current.library,
+        topPicks: Array.isArray(patch.topPicks) ? patch.topPicks : current.topPicks,
+        ratings: patch.ratings && typeof patch.ratings === 'object' && !Array.isArray(patch.ratings)
+            ? patch.ratings
+            : current.ratings,
+        comments: patch.comments && typeof patch.comments === 'object' && !Array.isArray(patch.comments)
+            ? patch.comments
+            : current.comments,
+        watchlist: Array.isArray(patch.watchlist) ? patch.watchlist : current.watchlist,
+    };
+
+    db.prepare(
+        `INSERT INTO user_sync_data (user_id, library_json, top_picks_json, ratings_json, comments_json, watchlist_json, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+         ON CONFLICT(user_id) DO UPDATE SET
+            library_json = excluded.library_json,
+            top_picks_json = excluded.top_picks_json,
+            ratings_json = excluded.ratings_json,
+            comments_json = excluded.comments_json,
+            watchlist_json = excluded.watchlist_json,
+            updated_at = datetime('now')`,
+    ).run(
+        userId,
+        JSON.stringify(next.library),
+        JSON.stringify(next.topPicks),
+        JSON.stringify(next.ratings),
+        JSON.stringify(next.comments),
+        JSON.stringify(next.watchlist),
+    );
+
+    return getUserSyncData(userId);
 }

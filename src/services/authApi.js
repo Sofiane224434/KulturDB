@@ -39,6 +39,14 @@ export const authApi = {
 
     me: () => request('/auth/me'),
 
+    getSyncData: () => request('/auth/sync-data'),
+
+    updateSyncData: (payload) =>
+        request('/auth/sync-data', {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        }),
+
     updateDisplayName: (displayName) =>
         request('/auth/me/display-name', {
             method: 'PATCH',

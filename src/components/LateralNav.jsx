@@ -50,15 +50,15 @@ function LateralNav() {
 
     const mainLinks = [
         { name: 'Accueil', path: '/' },
+        { name: 'Ma Bibliothèque', path: '/library' },
+        { name: 'Mon profil', path: '/profile' },
         { name: 'Films', path: '/movies' },
         { name: 'Séries', path: '/series' },
         { name: 'Anime', path: '/anime' },
         { name: 'Mangas', path: '/manga' },
         { name: 'Manwha', path: '/manwha' },
         { name: 'Light Novels', path: '/light-novels' },
-        { name: 'Romans', path: '/romans' },
-        { name: 'Ma Bibliothèque', path: '/library' },
-        { name: 'Mon profil', path: '/profile' }
+        { name: 'Romans', path: '/romans' }
     ];
 
     // Charger l'historique
@@ -191,7 +191,7 @@ function LateralNav() {
     const navContent = (
         <>
             <Link to="/">
-                <div className="p-4 flex flex-col items-center gap-3 cursor-pointer group">
+                <div className="p-3 flex flex-col items-center gap-2 cursor-pointer group">
                     <span className="flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-lg group-hover:scale-105 transition-transform">
                         <span className="font-display font-bold text-6xl leading-none text-black">K</span>
                     </span>
@@ -285,8 +285,6 @@ function LateralNav() {
             </div>
 
             <ul className="grid grid-cols-1 md:grid-cols-2 flex-1 p-3 gap-1 content-start auto-rows-min">
-                <li className="h-4 mb-2 border2-separator"></li>
-                <li className="hidden md:block h-4 mb-2 border2-separator"></li>
 
                 {mainLinks.map((link) => (
                     <li key={link.path}>
@@ -369,16 +367,6 @@ function LateralNav() {
                     {navContent}
                 </div>
             </aside>
-
-            {desktopCollapsed && (
-                <button
-                    onClick={toggleDesktopSidebar}
-                    aria-label="Ouvrir la sidebar"
-                    className="hidden md:block fixed right-3 top-1/2 -translate-y-1/2 z-40 px-3 py-2 bg-black border border-gray-700 text-gray-300 font-display uppercase tracking-wider text-xs"
-                >
-                    Menu
-                </button>
-            )}
         </>
     );
 }

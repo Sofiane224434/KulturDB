@@ -15,6 +15,7 @@ import {
     findPendingByEmail,
     getValidPendingRegistrationToken,
     markPendingRegistrationUsed,
+    getUserSyncData,
     listFriendsForUser,
     listIncomingFriendRequests,
     listOutgoingFriendRequests,
@@ -26,6 +27,7 @@ import {
     markVerificationTokenUsed,
     updateUserVerification,
     updateUserDisplayName,
+    upsertUserSyncData,
 } from '../services/userRepository.js';
 import {
     generateEmailVerificationToken,
@@ -173,6 +175,46 @@ router.post('/login', async (req, res) => {
 
 router.get('/me', requireAuth, (req, res) => {
     return res.json({ user: req.user });
+});
+
+router.get('/sync-data', requireAuth, (req, res) => {
+    const syncData = getUserSyncData(req.user.id);
+    return res.json({ syncData });
+});
+
+router.put('/sync-data', requireAuth, (req, res) => {
+    const body = req.body || {};
+    const payload = {};
+
+    if (Object.prototype.hasOwnProperty.call(body, 'library') && Array.isArray(body.library)) {
+        payload.library = body.library;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'topPicks') && Array.isArray(body.topPicks)) {
+        payload.topPicks = body.topPicks;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'ratings') && body.ratings && typeof body.ratings === 'object' && !Array.isArray(body.ratings)) {
+        payload.ratings = body.ratings;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'comments') && body.comments && typeof body.comments === 'object' && !Array.isArray(body.comments)) {
+        payload.comments = body.comments;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'watchlist') && Array.isArray(body.watchlist)) {
+        payload.watchlist = body.watchlist;
+    }
+
+    if (Object.keys(payload).length === 0) {
+        return res.status(400).json({ message: 'Aucune donnee de synchronisation valide fournie.' });
+    }
+
+    const syncData = upsertUserSyncData(req.user.id, payload);
+    return res.json({
+        message: 'Synchronisation mise a jour.',
+        syncData,
+    });
 });
 
 router.get('/users/search', requireAuth, (req, res) => {
