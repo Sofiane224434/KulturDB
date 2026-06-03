@@ -294,8 +294,8 @@ function LateralNav() {
                 </div>
             </nav>
 
-            <aside className="hidden md:block md:order-2 md:w-75 lg:w-80 md:sticky md:top-0 md:h-screen md:self-start bg-black border-l-2 border-black">
-                <div className="flex flex-col h-screen overflow-y-auto no-scrollbar">
+            <aside className="hidden md:block md:order-2 md:w-75 lg:w-80 md:sticky md:top-16 md:h-[calc(100vh-4rem)] md:self-start bg-black border-l-2 border-black">
+                <div className="flex flex-col h-full overflow-y-auto no-scrollbar">
                     {navContent}
                 </div>
             </aside>

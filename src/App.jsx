@@ -69,7 +69,7 @@ function App() {
         <Router>
             <div className="min-h-screen bg-[#f5f5f0] text-gray-900 font-serif">
                 <div className="flex flex-col md:flex-row md:items-start md:min-h-screen">
-                    <main className="flex-1 min-w-0 order-2 md:order-1 md:pr-80 lg:pr-84">
+                    <main className="flex-1 min-w-0 order-2 md:order-1">
                         <TopAuthActions />
                         <Routes>
                             <Route path="/" element={<Home />} />
