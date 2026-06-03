@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import MediaCard from '../components/MediaCard';
 import Modal from '../components/Modal';
 import { tmdbService } from '../services/tmdb';
-import { useFavorites, useComments, useRatings, useLibrary } from '../hooks/useLocalStorage';
+import { useTopPicks, useComments, useRatings, useLibrary } from '../hooks/useLocalStorage';
 
 function SeriesDetail() {
     const { id } = useParams();
@@ -15,12 +15,12 @@ function SeriesDetail() {
     const [replyTo, setReplyTo] = useState(null);
     const [trailer, setTrailer] = useState(null);
     
-    const { isFavorite, addFavorite, removeFavorite } = useFavorites();
+    const { isInTopPicks, addToTopPicks, removeFromTopPicks } = useTopPicks();
     const { getComments, addComment, deleteComment } = useComments();
     const { getRating, setRating } = useRatings();
     const { isInLibrary, addToLibrary, removeFromLibrary } = useLibrary();
     
-    const [isFav, setIsFav] = useState(false);
+    const [isInTop, setIsInTop] = useState(false);
     const [inLibrary, setInLibrary] = useState(false);
     const [userRating, setUserRating] = useState(0);
     const [selectedSeason, setSelectedSeason] = useState(null);
@@ -35,7 +35,7 @@ function SeriesDetail() {
                     tmdbService.getSeriesVideos(id)
                 ]);
                 setSeries(seriesData);
-                setIsFav(isFavorite(parseInt(id)));
+                setIsInTop(isInTopPicks(id, 'series'));
                 setInLibrary(isInLibrary(id, 'series'));
                 setUserRating(getRating(id));
                 setComments(getComments(id));
@@ -57,13 +57,13 @@ function SeriesDetail() {
         fetchSeries();
     }, [id]);
 
-    const handleFavoriteToggle = () => {
-        if (isFav) {
-            removeFavorite(parseInt(id));
+    const handleTopToggle = () => {
+        if (isInTop) {
+            removeFromTopPicks(id, 'series');
         } else {
-            addFavorite({ id: series.id, name: series.name, poster_path: series.poster_path }, 'series');
+            addToTopPicks({ id: series.id, title: series.name, poster_path: series.poster_path }, 'series');
         }
-        setIsFav(!isFav);
+        setIsInTop(!isInTop);
     };
 
     const handleSubmitComment = (e) => {
@@ -213,10 +213,10 @@ function SeriesDetail() {
                         </div>
                         
                         <button
-                            onClick={handleFavoriteToggle}
+                            onClick={handleTopToggle}
                             className="w-full mb-2 px-6 py-3 font-display uppercase tracking-wider bg-black text-gray-400 hover:text-white transition-colors border-2 border-gray-800"
                         >
-                            {isFav ? '★ Retirer des favoris' : '☆ Ajouter aux favoris'}
+                            {isInTop ? '★ Retirer de mon top series' : '☆ Ajouter a mon top series'}
                         </button>
                         
                         <button

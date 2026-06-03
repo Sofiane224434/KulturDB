@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import ReadingCard from '../components/ReadingCard';
 import { readingApi } from '../services/readingApi';
 import { useLibrary } from '../hooks/useLocalStorage';
+import { useTopPicks } from '../hooks/useLocalStorage';
 
 const normalizeName = (value) =>
   String(value || '')
@@ -75,6 +76,7 @@ function ReadingDetail() {
   const { type, id } = useParams();
   const navigate = useNavigate();
   const { isInLibrary, addToLibrary, removeFromLibrary } = useLibrary();
+  const { isInTopPicks, addToTopPicks, removeFromTopPicks } = useTopPicks();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -84,6 +86,7 @@ function ReadingDetail() {
   const [characters, setCharacters] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [inLibrary, setInLibrary] = useState(false);
+  const [isInTop, setIsInTop] = useState(false);
 
   const isJikanType = type === 'manga' || type === 'manwha' || type === 'light_novel';
 
@@ -147,6 +150,10 @@ function ReadingDetail() {
   useEffect(() => {
     setInLibrary(isInLibrary(id, type));
   }, [id, isInLibrary, type]);
+
+  useEffect(() => {
+    setIsInTop(isInTopPicks(id, type));
+  }, [id, isInTopPicks, type]);
 
   const coverUrl = useMemo(() => {
     if (!detail) {
@@ -259,6 +266,30 @@ function ReadingDetail() {
     setInLibrary(true);
   };
 
+  const handleTopToggle = () => {
+    if (!detail) {
+      return;
+    }
+
+    if (isInTop) {
+      removeFromTopPicks(id, type);
+      setIsInTop(false);
+      return;
+    }
+
+    addToTopPicks(
+      {
+        id,
+        title,
+        image: coverUrl,
+        year: isJikanType ? detail?.published?.prop?.from?.year || null : detail?.firstPublishDate || null,
+        source: isJikanType ? 'Jikan / MyAnimeList' : 'Open Library',
+      },
+      type,
+    );
+    setIsInTop(true);
+  };
+
   return (
     <div className="vintage-frame">
       <div className="vintage-frame-top"></div>
@@ -270,6 +301,13 @@ function ReadingDetail() {
             className="px-4 py-2 text-sm font-display uppercase tracking-wider bg-gray-800 text-gray-300 border-2 border-gray-900"
           >
             ← Retour
+          </button>
+
+          <button
+            onClick={handleTopToggle}
+            className="px-4 py-2 text-sm font-display uppercase tracking-wider bg-black text-gray-200 border-2 border-gray-900"
+          >
+            {isInTop ? '★ Retirer de mon top' : '☆ Ajouter a mon top'}
           </button>
 
           <button

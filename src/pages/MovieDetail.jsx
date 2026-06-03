@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import MediaCard from '../components/MediaCard';
 import { tmdbService } from '../services/tmdb';
-import { useFavorites, useComments, useRatings, useLibrary } from '../hooks/useLocalStorage';
+import { useTopPicks, useComments, useRatings, useLibrary } from '../hooks/useLocalStorage';
 
 function MovieDetail() {
     const { id } = useParams();
@@ -14,12 +14,12 @@ function MovieDetail() {
     const [replyTo, setReplyTo] = useState(null);
     const [trailer, setTrailer] = useState(null);
     
-    const { isFavorite, addFavorite, removeFavorite } = useFavorites();
+    const { isInTopPicks, addToTopPicks, removeFromTopPicks } = useTopPicks();
     const { getComments, addComment, deleteComment } = useComments();
     const { getRating, setRating } = useRatings();
     const { isInLibrary, addToLibrary, removeFromLibrary } = useLibrary();
     
-    const [isFav, setIsFav] = useState(false);
+    const [isInTop, setIsInTop] = useState(false);
     const [inLibrary, setInLibrary] = useState(false);
     const [userRating, setUserRating] = useState(0);
 
@@ -31,7 +31,7 @@ function MovieDetail() {
                     tmdbService.getMovieVideos(id)
                 ]);
                 setMovie(movieData);
-                setIsFav(isFavorite(parseInt(id)));
+                setIsInTop(isInTopPicks(id, 'movie'));
                 setInLibrary(isInLibrary(id, 'movie'));
                 setUserRating(getRating(id));
                 setComments(getComments(id));
@@ -53,13 +53,13 @@ function MovieDetail() {
         fetchMovie();
     }, [id]);
 
-    const handleFavoriteToggle = () => {
-        if (isFav) {
-            removeFavorite(parseInt(id));
+    const handleTopToggle = () => {
+        if (isInTop) {
+            removeFromTopPicks(id, 'movie');
         } else {
-            addFavorite({ id: movie.id, title: movie.title, poster_path: movie.poster_path }, 'movie');
+            addToTopPicks({ id: movie.id, title: movie.title, poster_path: movie.poster_path }, 'movie');
         }
-        setIsFav(!isFav);
+        setIsInTop(!isInTop);
     };
 
     const handleSubmitComment = (e) => {
@@ -191,10 +191,10 @@ function MovieDetail() {
                         </div>
                         
                         <button
-                            onClick={handleFavoriteToggle}
+                            onClick={handleTopToggle}
                             className="w-full mb-2 px-6 py-3 font-display uppercase tracking-wider bg-black text-gray-400 hover:text-white transition-colors border-2 border-gray-800"
                         >
-                            {isFav ? '★ Retirer des favoris' : '☆ Ajouter aux favoris'}
+                            {isInTop ? '★ Retirer de mon top films' : '☆ Ajouter a mon top films'}
                         </button>
                         
                         <button

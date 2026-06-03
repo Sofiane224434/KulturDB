@@ -63,12 +63,12 @@ function Home() {
             <div className="px-3 sm:px-6 md:px-12 py-6 md:py-8">
                 <header className="mb-10 md:mb-16 text-center">
                     <h5 className="text-xs sm:text-sm tracking-[0.3em] sm:tracking-[0.5em] uppercase text-gray-600 mb-2">Bienvenue sur</h5>
-                    <h1 className="text-4xl sm:text-6xl md:text-8xl font-display uppercase tracking-wider text-gray-500 mb-6 drop-shadow-xl break-words">
+                    <h1 className="text-4xl sm:text-6xl md:text-8xl font-display uppercase tracking-wider text-gray-500 mb-6 drop-shadow-xl wrap-break-word">
                         <span className="text-5xl sm:text-7xl md:text-9xl">K</span>ultur<span className="text-5xl sm:text-7xl md:text-9xl">D</span><span className="text-5xl sm:text-7xl md:text-9xl">B</span>
                     </h1>
                     <div className="h-1 w-24 md:w-32 bg-gray-400 mx-auto mb-6 md:mb-8"></div>
                     <p className="max-w-2xl mx-auto text-base md:text-lg font-serif text-gray-600">
-                        Découvrez les films et séries les plus populaires du moment. Explorez, notez et partagez vos favoris.
+                        Découvrez les films et séries les plus populaires du moment. Explorez, notez et construisez vos tops par catégorie.
                     </p>
                 </header>
 

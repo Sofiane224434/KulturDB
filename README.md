@@ -58,7 +58,7 @@ Variables OAuth GitHub:
 - Routes lecture publiques: /manga, /manwha, /light-novels, /romans
 - Barre de recherche: filtres disponibles pour films, series, anime, manga, manwha, light novel et roman
 - Bibliotheque publique active: /library (suivi visionnage/lecture sans login)
-- Favoris visibles dans /library, avec gestion locale via le stockage navigateur
+- Tops personnels visibles dans /library (top films, top series, top anime, top manga, etc.), avec gestion locale via le stockage navigateur
 - Alias legacy conserve: /watchlist redirige vers /library
 - Profil: pseudo modifiable depuis /profile (compte connecte)
 

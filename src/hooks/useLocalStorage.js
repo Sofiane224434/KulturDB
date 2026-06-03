@@ -1,31 +1,89 @@
-// Hook pour gérer les favoris
+// Hook pour gérer les tops (films, series, anime, manga, etc.)
+export const useTopPicks = () => {
+  const TOP_PICKS_KEY = 'kulturdb_top_picks';
+  const LEGACY_FAVORITES_KEY = 'moviedb_favorites';
+
+  const normalizeTopItem = (item) => ({
+    ...item,
+    id: String(item.id),
+    type: item.type || 'movie',
+    title: item.title || item.name || 'Titre indisponible',
+    addedAt: item.addedAt || Date.now(),
+  });
+
+  const migrateLegacyFavorites = () => {
+    const legacyFavorites = localStorage.getItem(LEGACY_FAVORITES_KEY);
+    if (!legacyFavorites) {
+      return [];
+    }
+
+    const parsedLegacy = JSON.parse(legacyFavorites);
+    const migrated = Array.isArray(parsedLegacy)
+      ? parsedLegacy.map((item) => normalizeTopItem(item))
+      : [];
+
+    localStorage.setItem(TOP_PICKS_KEY, JSON.stringify(migrated));
+    return migrated;
+  };
+
+  const getTopPicks = () => {
+    const topPicks = localStorage.getItem(TOP_PICKS_KEY);
+    if (topPicks) {
+      const parsed = JSON.parse(topPicks);
+      return Array.isArray(parsed) ? parsed.map((item) => normalizeTopItem(item)) : [];
+    }
+
+    return migrateLegacyFavorites();
+  };
+
+  const saveTopPicks = (topPicks) => {
+    localStorage.setItem(TOP_PICKS_KEY, JSON.stringify(topPicks));
+    return topPicks;
+  };
+
+  const addToTopPicks = (item, type) => {
+    const topPicks = getTopPicks();
+    const normalizedId = String(item.id);
+
+    if (topPicks.some((entry) => entry.id === normalizedId && entry.type === type)) {
+      return topPicks;
+    }
+
+    const newTop = normalizeTopItem({ ...item, id: normalizedId, type, addedAt: Date.now() });
+    return saveTopPicks([newTop, ...topPicks]);
+  };
+
+  const removeFromTopPicks = (id, type = null) => {
+    const normalizedId = String(id);
+    const topPicks = getTopPicks();
+    const updated = topPicks.filter((entry) => {
+      if (type) {
+        return !(entry.id === normalizedId && entry.type === type);
+      }
+      return entry.id !== normalizedId;
+    });
+    return saveTopPicks(updated);
+  };
+
+  const isInTopPicks = (id, type = null) => {
+    const normalizedId = String(id);
+    const topPicks = getTopPicks();
+    return topPicks.some((entry) => (type ? entry.id === normalizedId && entry.type === type : entry.id === normalizedId));
+  };
+
+  return { getTopPicks, addToTopPicks, removeFromTopPicks, isInTopPicks };
+};
+
+// Alias legacy pour compatibilite du code existant
 export const useFavorites = () => {
-  const getFavorites = () => {
-    const favorites = localStorage.getItem('moviedb_favorites');
-    return favorites ? JSON.parse(favorites) : [];
-  };
+  const { getTopPicks, addToTopPicks, removeFromTopPicks, isInTopPicks } = useTopPicks();
 
-  const addFavorite = (item, type) => {
-    const favorites = getFavorites();
-    const newFavorite = { ...item, type, addedAt: Date.now() };
-    const updated = [...favorites, newFavorite];
-    localStorage.setItem('moviedb_favorites', JSON.stringify(updated));
-    return updated;
+  return {
+    getFavorites: getTopPicks,
+    addFavorite: addToTopPicks,
+    removeFavorite: removeFromTopPicks,
+    isFavorite: isInTopPicks,
   };
-
-  const removeFavorite = (id) => {
-    const favorites = getFavorites();
-    const updated = favorites.filter(fav => fav.id !== id);
-    localStorage.setItem('moviedb_favorites', JSON.stringify(updated));
-    return updated;
-  };
-
-  const isFavorite = (id) => {
-    const favorites = getFavorites();
-    return favorites.some(fav => fav.id === id);
-  };
-
-  return { getFavorites, addFavorite, removeFavorite, isFavorite };
 };
 
 // Hook pour gérer les commentaires
