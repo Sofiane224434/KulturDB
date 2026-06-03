@@ -16,6 +16,7 @@ import {
     getValidVerificationToken,
     markVerificationTokenUsed,
     updateUserVerification,
+    updateUserDisplayName,
 } from '../services/userRepository.js';
 import {
     generateEmailVerificationToken,
@@ -111,6 +112,24 @@ router.post('/login', async (req, res) => {
 
 router.get('/me', requireAuth, (req, res) => {
     return res.json({ user: req.user });
+});
+
+router.patch('/me/display-name', requireAuth, (req, res) => {
+    const rawDisplayName = String(req.body?.displayName || '').trim();
+
+    if (!rawDisplayName) {
+        return res.status(400).json({ message: 'Le pseudo est requis.' });
+    }
+
+    if (rawDisplayName.length < 2 || rawDisplayName.length > 50) {
+        return res.status(400).json({ message: 'Le pseudo doit contenir entre 2 et 50 caracteres.' });
+    }
+
+    const updatedUser = updateUserDisplayName(req.user.id, rawDisplayName);
+    return res.json({
+        message: 'Pseudo mis a jour.',
+        user: publicUser(updatedUser),
+    });
 });
 
 router.post('/resend-verification', async (req, res) => {

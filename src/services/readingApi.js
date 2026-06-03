@@ -4,9 +4,17 @@ const OPEN_LIBRARY_BASE_URL = 'https://openlibrary.org';
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 const BANNED_ROMAN_TERMS = ['manga', 'manhwa', 'manwha', 'manhua', 'comic', 'comics', 'graphic novel'];
 
+const pickLocalizedReadingTitle = (item) => {
+  const titles = Array.isArray(item?.titles) ? item.titles : [];
+  const frenchTitle = titles.find((entry) => /french/i.test(String(entry?.type || '')))?.title;
+  const englishTitle = item?.title_english || titles.find((entry) => /english/i.test(String(entry?.type || '')))?.title;
+  return frenchTitle || englishTitle || item?.title || titles[0]?.title || 'Titre indisponible';
+};
+
 const toJikanItem = (item, fallbackType) => ({
   id: item.mal_id,
-  title: item.title,
+  title: pickLocalizedReadingTitle(item),
+  originalTitle: item.title || null,
   image: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || null,
   year: item.published?.prop?.from?.year || null,
   score: item.score || null,
@@ -121,6 +129,44 @@ export const readingApi = {
     const response = await fetch(`${JIKAN_BASE_URL}/people/${id}/full`);
     const data = await response.json();
     return data?.data || null;
+  },
+
+  async searchMangas(query, page = 1) {
+    const response = await fetch(`${JIKAN_BASE_URL}/manga?q=${encodeURIComponent(query)}&type=manga&page=${page}&limit=10&sfw=true`);
+    const data = await response.json();
+    return {
+      results: (data?.data || []).map((item) => toJikanItem(item, 'manga')),
+      totalPages: Math.max(1, data?.pagination?.last_visible_page || 1),
+    };
+  },
+
+  async searchManwha(query, page = 1) {
+    const response = await fetch(`${JIKAN_BASE_URL}/manga?q=${encodeURIComponent(query)}&type=manhwa&page=${page}&limit=10&sfw=true`);
+    const data = await response.json();
+    return {
+      results: (data?.data || []).map((item) => toJikanItem(item, 'manwha')),
+      totalPages: Math.max(1, data?.pagination?.last_visible_page || 1),
+    };
+  },
+
+  async searchLightNovels(query, page = 1) {
+    const response = await fetch(`${JIKAN_BASE_URL}/manga?q=${encodeURIComponent(query)}&type=lightnovel&page=${page}&limit=10&sfw=true`);
+    const data = await response.json();
+    return {
+      results: (data?.data || []).map((item) => toJikanItem(item, 'light_novel')),
+      totalPages: Math.max(1, data?.pagination?.last_visible_page || 1),
+    };
+  },
+
+  async searchRomans(query, page = 1) {
+    const response = await fetch(`${OPEN_LIBRARY_URL}?q=${encodeURIComponent(query)}&page=${page}&limit=20`);
+    const data = await response.json();
+    const parsed = parseOpenLibrary(data, 'roman');
+
+    return {
+      ...parsed,
+      results: parsed.results.filter((_, idx) => !isLikelyNonRoman(data.docs[idx])).slice(0, 10),
+    };
   },
 
   async getRomanDetails(workId) {

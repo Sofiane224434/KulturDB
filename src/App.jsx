@@ -25,14 +25,11 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 function TopAuthActions() {
     const navigate = useNavigate();
-    const { isAuthenticated, user, logout } = useAuth();
+    const { isAuthenticated, logout } = useAuth();
 
     if (isAuthenticated) {
         return (
             <div className="flex items-center justify-end gap-3 px-4 pt-4 pb-2 md:px-8">
-                <span className="hidden sm:inline text-xs md:text-sm font-serif text-gray-600">
-                    Connecté: <span className="text-gray-900">{user?.displayName || user?.email}</span>
-                </span>
                 <button
                     onClick={() => {
                         logout();

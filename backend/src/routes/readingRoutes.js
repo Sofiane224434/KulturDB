@@ -41,6 +41,28 @@ const pickMangaDexDescription = (description = {}) => {
     return description.en || Object.values(description)[0] || '';
 };
 
+const pickMangaDexTitle = (title = {}, altTitles = []) => {
+    if (title.fr) {
+        return title.fr;
+    }
+
+    if (title['fr-ro']) {
+        return title['fr-ro'];
+    }
+
+    const frenchAlt = Array.isArray(altTitles)
+        ? altTitles
+            .map((titleObj) => titleObj?.fr || titleObj?.['fr-ro'])
+            .find(Boolean)
+        : null;
+
+    const anyAlt = Array.isArray(altTitles)
+        ? altTitles.flatMap((titleObj) => Object.values(titleObj || {})).find(Boolean)
+        : null;
+
+    return frenchAlt || title.en || title.ja || anyAlt || Object.values(title)[0] || '';
+};
+
 router.get('/mangadex/supplement', async (req, res) => {
     try {
         const queryTitles = req.query.title;
@@ -141,6 +163,7 @@ router.get('/mangadex/supplement', async (req, res) => {
 
         return res.json({
             mangaDexId: mangaId,
+            titleFr: pickMangaDexTitle(attributes.title || {}, attributes.altTitles || []),
             descriptionFr: pickMangaDexDescription(attributes.description || {}),
             scanChapterCount: chapterKeys.size || null,
             availableTranslatedLanguages: translatedLanguages,

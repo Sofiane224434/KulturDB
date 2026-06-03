@@ -39,6 +39,12 @@ export const authApi = {
 
     me: () => request('/auth/me'),
 
+    updateDisplayName: (displayName) =>
+        request('/auth/me/display-name', {
+            method: 'PATCH',
+            body: JSON.stringify({ displayName }),
+        }),
+
     resendVerification: (email) =>
         request('/auth/resend-verification', {
             method: 'POST',

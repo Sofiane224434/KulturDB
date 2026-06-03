@@ -45,6 +45,16 @@ export function updateUserVerification(userId, verified) {
     );
 }
 
+export function updateUserDisplayName(userId, displayName) {
+    db.prepare(
+        `UPDATE users
+         SET display_name = ?, updated_at = datetime('now')
+         WHERE id = ?`,
+    ).run(displayName, userId);
+
+    return findUserById(userId);
+}
+
 export function storeVerificationToken({ userId, token, expiresAt }) {
     db.prepare(
         `INSERT INTO email_verification_tokens (user_id, token, expires_at)

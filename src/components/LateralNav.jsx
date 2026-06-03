@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { tmdbService } from '../services/tmdb';
+import { readingApi } from '../services/readingApi';
 
 function LateralNav() {
     const location = useLocation();
@@ -13,6 +14,27 @@ function LateralNav() {
     const [mobileOpen, setMobileOpen] = useState(false);
     const searchRef = useRef(null);
     const searchInputRef = useRef(null);
+
+    const searchFilterButtons = [
+        { key: 'all', label: 'Tous' },
+        { key: 'movie', label: 'Films' },
+        { key: 'tv', label: 'Séries' },
+        { key: 'anime', label: 'Anime' },
+        { key: 'manga', label: 'Manga' },
+        { key: 'manwha', label: 'Manwha' },
+        { key: 'light_novel', label: 'Light Novel' },
+        { key: 'roman', label: 'Roman' },
+    ];
+
+    const mediaTypeLabel = {
+        movie: 'Film',
+        tv: 'Série',
+        anime: 'Anime',
+        manga: 'Manga',
+        manwha: 'Manwha',
+        light_novel: 'Light Novel',
+        roman: 'Roman',
+    };
 
     // Fermer le drawer au changement de route
     useEffect(() => {
@@ -74,21 +96,48 @@ function LateralNav() {
                 try {
                     let data;
                     if (searchFilter === 'movie') {
-                        data = await tmdbService.searchMovies(searchQuery);
+                        const movieData = await tmdbService.searchMovies(searchQuery);
+                        data = {
+                            results: (movieData.results || []).map((item) => ({ ...item, media_type: 'movie' }))
+                        };
                     } else if (searchFilter === 'tv') {
-                        data = await tmdbService.searchSeries(searchQuery);
+                        const seriesData = await tmdbService.searchSeries(searchQuery);
+                        data = {
+                            results: (seriesData.results || []).map((item) => ({ ...item, media_type: 'tv' }))
+                        };
                     } else if (searchFilter === 'anime') {
                         // Recherche d'animes (séries d'animation japonaise)
                         const tvData = await tmdbService.searchSeries(searchQuery);
                         data = {
-                            results: tvData.results.filter(item =>
-                                item.origin_country && item.origin_country.includes('JP')
-                            )
+                            results: tvData.results
+                                .filter(item => item.origin_country && item.origin_country.includes('JP'))
+                                .map((item) => ({ ...item, media_type: 'anime' }))
+                        };
+                    } else if (searchFilter === 'manga') {
+                        const readingData = await readingApi.searchMangas(searchQuery);
+                        data = {
+                            results: (readingData.results || []).map((item) => ({ ...item, media_type: 'manga' }))
+                        };
+                    } else if (searchFilter === 'manwha') {
+                        const readingData = await readingApi.searchManwha(searchQuery);
+                        data = {
+                            results: (readingData.results || []).map((item) => ({ ...item, media_type: 'manwha' }))
+                        };
+                    } else if (searchFilter === 'light_novel') {
+                        const readingData = await readingApi.searchLightNovels(searchQuery);
+                        data = {
+                            results: (readingData.results || []).map((item) => ({ ...item, media_type: 'light_novel' }))
+                        };
+                    } else if (searchFilter === 'roman') {
+                        const readingData = await readingApi.searchRomans(searchQuery);
+                        data = {
+                            results: (readingData.results || []).map((item) => ({ ...item, media_type: 'roman' }))
                         };
                     } else {
                         data = await tmdbService.searchMulti(searchQuery);
                     }
-                    setSuggestions(data.results.slice(0, 5));
+                    const resultItems = Array.isArray(data?.results) ? data.results : [];
+                    setSuggestions(resultItems.slice(0, 5));
                     setShowSuggestions(true);
                 } catch (error) {
                     console.error('Erreur de recherche:', error);
@@ -102,11 +151,22 @@ function LateralNav() {
     }, [searchQuery, searchFilter]);
 
     const handleSuggestionClick = (item) => {
-        const type = item.media_type === 'movie' ? 'movie' : 'series';
-        const newHistory = [item.title || item.name, ...searchHistory.filter(h => h !== (item.title || item.name))].slice(0, 5);
+        const label = item.title || item.name;
+        const mediaType = item.media_type;
+        const newHistory = [label, ...searchHistory.filter(h => h !== label)].slice(0, 5);
         setSearchHistory(newHistory);
         localStorage.setItem('searchHistory', JSON.stringify(newHistory));
-        navigate(`/${type}/${item.id}`);
+
+        if (mediaType === 'movie') {
+            navigate(`/movie/${item.id}`);
+        } else if (mediaType === 'tv' || mediaType === 'anime') {
+            navigate(`/series/${item.id}`);
+        } else if (mediaType === 'manga' || mediaType === 'manwha' || mediaType === 'light_novel' || mediaType === 'roman') {
+            navigate(`/reading/${mediaType}/${item.id}`);
+        } else {
+            navigate(`/series/${item.id}`);
+        }
+
         setSearchQuery('');
         setShowSuggestions(false);
     };
@@ -130,35 +190,16 @@ function LateralNav() {
             </Link>
 
             <div className="px-3 mb-4" ref={searchRef}>
-                <div className="flex gap-1 mb-2">
-                    <button
-                        onClick={() => setSearchFilter('all')}
-                        className={`flex-1 px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === 'all' ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'
-                            }`}
-                    >
-                        Tous
-                    </button>
-                    <button
-                        onClick={() => setSearchFilter('movie')}
-                        className={`flex-1 px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === 'movie' ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'
-                            }`}
-                    >
-                        Films
-                    </button>
-                    <button
-                        onClick={() => setSearchFilter('tv')}
-                        className={`flex-1 px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === 'tv' ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'
-                            }`}
-                    >
-                        Séries
-                    </button>
-                    <button
-                        onClick={() => setSearchFilter('anime')}
-                        className={`flex-1 px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === 'anime' ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'
-                            }`}
-                    >
-                        Anime
-                    </button>
+                <div className="grid grid-cols-4 gap-1 mb-2">
+                    {searchFilterButtons.map((filterButton) => (
+                        <button
+                            key={filterButton.key}
+                            onClick={() => setSearchFilter(filterButton.key)}
+                            className={`px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === filterButton.key ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'}`}
+                        >
+                            {filterButton.label}
+                        </button>
+                    ))}
                 </div>
                 <div className="relative">
                     <input
@@ -187,12 +228,19 @@ function LateralNav() {
                                                     className="w-8 h-12 object-cover"
                                                 />
                                             )}
+                                            {!item.poster_path && item.image && (
+                                                <img
+                                                    src={item.image}
+                                                    alt={item.title || item.name}
+                                                    className="w-8 h-12 object-cover"
+                                                />
+                                            )}
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-display text-gray-300 text-xs uppercase tracking-wider truncate">
                                                     {item.title || item.name}
                                                 </p>
                                                 <p className="font-serif text-xs text-gray-500">
-                                                    {item.media_type === 'movie' ? 'Film' : 'Série'} • {item.release_date || item.first_air_date ? new Date(item.release_date || item.first_air_date).getFullYear() : 'N/A'}
+                                                    {mediaTypeLabel[item.media_type] || 'Résultat'} • {item.release_date || item.first_air_date ? new Date(item.release_date || item.first_air_date).getFullYear() : (item.year || 'N/A')}
                                                 </p>
                                             </div>
                                         </div>

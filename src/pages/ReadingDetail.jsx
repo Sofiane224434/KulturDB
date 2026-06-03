@@ -25,6 +25,21 @@ const extractAuthorTokens = (name) => {
     .filter((token) => token.length >= 4);
 };
 
+const pickBestReadingTitle = (detail, supplement) => {
+  if (!detail) {
+    return 'Titre indisponible';
+  }
+
+  if (supplement?.titleFr) {
+    return supplement.titleFr;
+  }
+
+  const titleEntries = Array.isArray(detail.titles) ? detail.titles : [];
+  const frenchTitle = titleEntries.find((entry) => /french/i.test(String(entry?.type || '')))?.title;
+  const englishTitle = detail.title_english || titleEntries.find((entry) => /english/i.test(String(entry?.type || '')))?.title;
+  return frenchTitle || englishTitle || detail.title || 'Titre indisponible';
+};
+
 const isSupplementConsistentWithJikan = (mainData, mdxSupplement) => {
   if (!mainData || !mdxSupplement) {
     return false;
@@ -108,9 +123,10 @@ function ReadingDetail() {
           setRecommendations(recData || []);
         } else if (type === 'roman') {
           const romanData = await readingApi.getRomanDetails(id);
+          const frSynopsis = await readingApi.translateToFrench(romanData?.synopsis || '');
           setDetail(romanData);
           setSupplement(null);
-          setFrenchSynopsis(romanData?.synopsis || '');
+          setFrenchSynopsis(frSynopsis || romanData?.synopsis || '');
           setCharacters([]);
           setRecommendations([]);
         } else {
@@ -173,7 +189,7 @@ function ReadingDetail() {
     );
   }
 
-  const title = isJikanType ? detail.title : detail.title;
+  const title = isJikanType ? pickBestReadingTitle(detail, supplement) : detail.title;
   const score = isJikanType ? (supplement?.score ?? detail.score) : null;
   const scoreSource = isJikanType ? (supplement?.scoreSource || 'MyAnimeList (Jikan)') : detail.source;
   const synopsis = isJikanType ? (frenchSynopsis || '') : (frenchSynopsis || detail.synopsis || '');
@@ -269,7 +285,7 @@ function ReadingDetail() {
             {coverUrl ? (
               <img src={coverUrl} alt={title} className="w-full border-4 border-gray-800" />
             ) : (
-              <div className="w-full aspect-[2/3] bg-gray-900 flex items-center justify-center border-4 border-gray-800">
+              <div className="w-full aspect-2/3 bg-gray-900 flex items-center justify-center border-4 border-gray-800">
                 <span className="text-gray-600 text-5xl font-display">?</span>
               </div>
             )}

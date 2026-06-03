@@ -56,9 +56,11 @@ Variables OAuth GitHub:
 - OAuth GitHub (si variables GitHub configurees)
 - Route legacy conservee: /favorites redirige vers /library
 - Routes lecture publiques: /manga, /manwha, /light-novels, /romans
+- Barre de recherche: filtres disponibles pour films, series, anime, manga, manwha, light novel et roman
 - Bibliotheque publique active: /library (suivi visionnage/lecture sans login)
 - Favoris visibles dans /library, avec gestion locale via le stockage navigateur
 - Alias legacy conserve: /watchlist redirige vers /library
+- Profil: pseudo modifiable depuis /profile (compte connecte)
 
 Base lecture via API:
 
@@ -83,6 +85,7 @@ Routes API auth:
 - POST /api/auth/register
 - POST /api/auth/login
 - GET /api/auth/me
+- PATCH /api/auth/me/display-name
 - POST /api/auth/resend-verification
 - POST /api/auth/verify-email
 - GET /api/auth/oauth/providers
