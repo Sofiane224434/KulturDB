@@ -1,5 +1,10 @@
+import { Link } from 'react-router-dom';
+
 function ReadingCard({ item }) {
+  const detailPath = item.type === 'roman' ? `/reading/roman/${item.id}` : `/reading/${item.type}/${item.id}`;
+
   return (
+    <Link to={detailPath}>
     <article className="group border-2 border-gray-800 bg-white overflow-hidden">
       {item.image ? (
         <img
@@ -25,17 +30,9 @@ function ReadingCard({ item }) {
         </div>
 
         <p className="mt-2 text-xs font-serif text-gray-500 line-clamp-1">{item.source}</p>
-
-        <a
-          href={item.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 inline-block w-full text-center px-3 py-2 text-xs font-display uppercase tracking-wider bg-black text-gray-300 hover:text-white transition-colors border border-gray-800"
-        >
-          Voir la fiche
-        </a>
       </div>
     </article>
+    </Link>
   );
 }
 

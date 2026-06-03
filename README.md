@@ -64,6 +64,8 @@ Base lecture via API:
 - Sources API: Jikan/MyAnimeList (manga, manwha, light novel) et Open Library (roman)
 - Navigation par categorie + pagination publique (sans connexion)
 - Fonction de suivi personnel/bibliotheque desactivee temporairement
+- Pages detail lecture internes (mode fiche): synopsis/resume, note source, genres, traductions, chapitres/volumes, equipe et similaires
+- Fiches auteurs/dessinateurs (Jikan) accessibles depuis les pages detail
 
 Routes frontend ajoutees:
 

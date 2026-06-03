@@ -10,6 +10,8 @@ import Manga from './pages/Manga';
 import Manwha from './pages/Manwha';
 import LightNovels from './pages/LightNovels';
 import Romans from './pages/Romans';
+import ReadingDetail from './pages/ReadingDetail';
+import ReadingPersonDetail from './pages/ReadingPersonDetail';
 import MovieDetail from './pages/MovieDetail';
 import SeriesDetail from './pages/SeriesDetail';
 import PersonDetail from './pages/PersonDetail';
@@ -77,6 +79,8 @@ function App() {
                             <Route path="/manwha" element={<Manwha />} />
                             <Route path="/light-novels" element={<LightNovels />} />
                             <Route path="/romans" element={<Romans />} />
+                            <Route path="/reading/:type/:id" element={<ReadingDetail />} />
+                            <Route path="/reading/person/:id" element={<ReadingPersonDetail />} />
                             <Route path="/movie/:id" element={<MovieDetail />} />
                             <Route path="/series/:id" element={<SeriesDetail />} />
                             <Route path="/person/:id" element={<PersonDetail />} />
