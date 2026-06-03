@@ -83,7 +83,7 @@ Variables OAuth GitHub:
 - Cas specifiques verrouilles: Inazuma Eleven GO Chrono Stone (51) et Inazuma Eleven GO Galaxy (43) forces en `anime` avec total exact
 - Fiche detail serie/anime: affichage episodes/saisons aligne sur la resolution multi-sources pour limiter les faux `1 episode`
 - Titres medias: affichage nettoye pour eviter les caracteres japonais/coreens dans les titres visibles (fallback latin)
-- Catalogue anime: source elargie (TMDB origin country JP + original language ja) pour couvrir davantage de series anime
+- Catalogue anime: source elargie et fusionnee (TMDB origin country JP/KR/CN + original language ja, dedoublonnage et tolerance aux reponses partielles) pour couvrir davantage d anime
 - Ajout/Detail series: resolution anime/episodes renforcee des l ajout (TMDB + Jikan + somme des saisons) pour limiter les cas classes en serie avec un total d episodes faux
 - Tops: ordre manuel possible a l interieur de chaque categorie (monter / descendre)
 - Lisibilite texte amelioree: taille de base augmentee et champs catalogue plus grands

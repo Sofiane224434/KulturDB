@@ -19,6 +19,12 @@ const TV_SORT_MAP = {
 };
 
 const BLOCKED_TITLE_CHARS_REGEX = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af]/;
+const ANIME_DISCOVER_VARIANTS = [
+  'with_genres=16&with_origin_country=JP',
+  'with_genres=16&with_original_language=ja',
+  'with_genres=16&with_origin_country=KR',
+  'with_genres=16&with_origin_country=CN',
+];
 
 function normalizeTitleValue(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
@@ -86,6 +92,18 @@ function sortAnimeResults(results, sortKey = 'popularity') {
 function resolveSortBy(sortKey, mediaType = 'tv') {
   const map = mediaType === 'movie' ? MOVIE_SORT_MAP : TV_SORT_MAP;
   return map[sortKey] || map.popularity;
+}
+
+async function fetchAnimeDiscoverVariant(query, page, sortBy) {
+  const response = await fetch(
+    `${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&include_adult=false&sort_by=${sortBy}&page=${page}&${query}`,
+  );
+
+  if (!response.ok) {
+    throw new Error(`TMDB discover failed for ${query}`);
+  }
+
+  return response.json();
 }
 
 export const tmdbService = {
@@ -159,23 +177,24 @@ export const tmdbService = {
 
   // Anime (films et séries d'animation japonaise)
   getAnime: async (page = 1, sortKey = 'popularity') => {
-    // Combine origin_country et original_language pour couvrir plus d'animes (ex: Tokyo Ghoul:re).
+    // Fusionne plusieurs variantes discover pour limiter les manques quand TMDB tague mal l'origine ou la langue.
     const sortBy = resolveSortBy(sortKey, 'tv');
-    const [originCountryResponse, originalLanguageResponse] = await Promise.all([
-      fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&include_adult=false&with_genres=16&with_origin_country=JP&sort_by=${sortBy}&page=${page}`),
-      fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&include_adult=false&with_genres=16&with_original_language=ja&sort_by=${sortBy}&page=${page}`),
-    ]);
+    const responses = await Promise.allSettled(
+      ANIME_DISCOVER_VARIANTS.map((query) => fetchAnimeDiscoverVariant(query, page, sortBy)),
+    );
 
-    const [originCountryData, originalLanguageData] = await Promise.all([
-      originCountryResponse.json(),
-      originalLanguageResponse.json(),
-    ]);
+    const successfulResults = responses
+      .filter((result) => result.status === 'fulfilled')
+      .map((result) => result.value);
+
+    if (successfulResults.length === 0) {
+      throw new Error('TMDB anime indisponible');
+    }
 
     const mergedMap = new Map();
-    const allResults = [
-      ...(Array.isArray(originCountryData?.results) ? originCountryData.results : []),
-      ...(Array.isArray(originalLanguageData?.results) ? originalLanguageData.results : []),
-    ];
+    const allResults = successfulResults.flatMap((dataset) => (
+      Array.isArray(dataset?.results) ? dataset.results : []
+    ));
 
     for (const item of allResults) {
       if (!item?.id) {
@@ -186,12 +205,22 @@ export const tmdbService = {
 
     const mergedResults = sortAnimeResults(Array.from(mergedMap.values()), sortKey).slice(0, 20);
 
+    const referenceData = successfulResults[0] || {};
+    const totalPages = successfulResults.reduce((maxPages, dataset) => {
+      const currentPages = Number(dataset?.total_pages) || 1;
+      return Math.max(maxPages, currentPages);
+    }, 1);
+    const totalResults = successfulResults.reduce((maxResults, dataset) => {
+      const currentResults = Number(dataset?.total_results) || 0;
+      return Math.max(maxResults, currentResults);
+    }, 0);
+
     return {
-      ...originCountryData,
+      ...referenceData,
       page,
       results: mergedResults,
-      total_pages: Math.max(originCountryData?.total_pages || 1, originalLanguageData?.total_pages || 1),
-      total_results: Math.max(originCountryData?.total_results || 0, originalLanguageData?.total_results || 0),
+      total_pages: totalPages,
+      total_results: totalResults,
     };
   },
 
