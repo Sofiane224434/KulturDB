@@ -10,7 +10,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -76,8 +76,11 @@ jobs:
 
             COMPOSE_PROJECT_NAME=kulturdb docker compose down || true
 
+            # Nettoie les conteneurs eventuellement restes en conflit de nom.
+            docker rm -f kulturdb-api kulturdb >/dev/null 2>&1 || true
+
             # Garde-fou: si 3003 est occupe par un conteneur inattendu, on echoue avec un message clair.
-            PORT_OWNER=$(docker ps --filter "publish=127.0.0.1:3003" --format '{{.ID}} {{.Names}}' | head -n1 || true)
+            PORT_OWNER=$(docker ps --filter "publish=3003" --format '{{.ID}} {{.Names}}' | head -n1 || true)
             if [ -n "$PORT_OWNER" ]; then
               echo "Le port 127.0.0.1:3003 est deja utilise: $PORT_OWNER"
               echo "Veuillez liberer ce port ou aligner le mapping Docker avant redeploiement."
