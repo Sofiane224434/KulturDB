@@ -56,7 +56,8 @@ Variables OAuth GitHub:
 - OAuth GitHub (si variables GitHub configurees)
 - Route privee protegee: /favorites (redirection auto vers /login)
 - Routes lecture publiques: /manga, /manwha, /light-novels, /romans
-- Alias legacy conserves: /library et /watchlist redirigent vers /manga
+- Bibliotheque publique active: /library (suivi visionnage/lecture sans login)
+- Alias legacy conserve: /watchlist redirige vers /library
 
 Base lecture via API:
 
@@ -64,7 +65,7 @@ Base lecture via API:
 - Sources API: Jikan/MyAnimeList (manga, manwha, light novel) et Open Library (roman)
 - Proxy backend /api/reading pour MangaDex supplement (chapitres scans, traductions, staff, score) et traduction FR (evite les blocages CORS navigateur)
 - Navigation par categorie + pagination publique (sans connexion)
-- Fonction de suivi personnel/bibliotheque desactivee temporairement
+- Fonction de bibliotheque perso activee (stockage local navigateur)
 - Pages detail lecture internes (mode fiche): synopsis/resume en francais, note source, genres, traductions completes, chapitres + chapitres scans, equipe et similaires
 - Fiches auteurs/dessinateurs (Jikan) accessibles depuis les pages detail
 

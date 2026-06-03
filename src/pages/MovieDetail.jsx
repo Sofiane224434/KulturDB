@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import MediaCard from '../components/MediaCard';
 import { tmdbService } from '../services/tmdb';
-import { useFavorites, useComments, useRatings } from '../hooks/useLocalStorage';
+import { useFavorites, useComments, useRatings, useLibrary } from '../hooks/useLocalStorage';
 
 function MovieDetail() {
     const { id } = useParams();
@@ -17,8 +17,10 @@ function MovieDetail() {
     const { isFavorite, addFavorite, removeFavorite } = useFavorites();
     const { getComments, addComment, deleteComment } = useComments();
     const { getRating, setRating } = useRatings();
+    const { isInLibrary, addToLibrary, removeFromLibrary } = useLibrary();
     
     const [isFav, setIsFav] = useState(false);
+    const [inLibrary, setInLibrary] = useState(false);
     const [userRating, setUserRating] = useState(0);
 
     useEffect(() => {
@@ -30,6 +32,7 @@ function MovieDetail() {
                 ]);
                 setMovie(movieData);
                 setIsFav(isFavorite(parseInt(id)));
+                setInLibrary(isInLibrary(id, 'movie'));
                 setUserRating(getRating(id));
                 setComments(getComments(id));
                 
@@ -77,6 +80,34 @@ function MovieDetail() {
     const handleRating = (rating) => {
         setRating(id, rating);
         setUserRating(rating);
+    };
+
+    const handleLibraryToggle = () => {
+        if (!movie) {
+            return;
+        }
+
+        if (inLibrary) {
+            removeFromLibrary(id, 'movie');
+            setInLibrary(false);
+            return;
+        }
+
+        addToLibrary(
+            {
+                id: movie.id,
+                title: movie.title,
+                poster_path: movie.poster_path,
+                year: movie.release_date ? new Date(movie.release_date).getFullYear() : null,
+                source: 'TMDB',
+            },
+            'movie',
+            {
+                progressUnit: 'film',
+                progressTotal: 1,
+            },
+        );
+        setInLibrary(true);
     };
 
     if (loading) {
@@ -166,9 +197,12 @@ function MovieDetail() {
                             {isFav ? '★ Retirer des favoris' : '☆ Ajouter aux favoris'}
                         </button>
                         
-                        <div className="w-full mb-6 px-6 py-3 font-display uppercase tracking-wider bg-gray-700 text-gray-400 border-2 border-gray-800 text-center">
-                            Base perso désactivée temporairement
-                        </div>
+                        <button
+                            onClick={handleLibraryToggle}
+                            className="w-full mb-6 px-6 py-3 font-display uppercase tracking-wider bg-gray-700 text-gray-200 hover:text-white transition-colors border-2 border-gray-800"
+                        >
+                            {inLibrary ? '✓ Retirer de ma bibliothèque' : '+ Ajouter à ma bibliothèque'}
+                        </button>
                         
                         {/* Infos supplémentaires */}
                         <div className="bg-white border-2 border-gray-400 p-6">

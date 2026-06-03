@@ -34,6 +34,7 @@ function LateralNav() {
         { name: 'Manwha', path: '/manwha' },
         { name: 'Light Novels', path: '/light-novels' },
         { name: 'Romans', path: '/romans' },
+        { name: 'Ma Bibliothèque', path: '/library' },
         { name: 'Favoris', path: '/favorites' }
     ];
 
@@ -148,7 +149,7 @@ function LateralNav() {
 
             <nav
                 className={`bg-black z-50 border-l-2 border-black
-                    md:w-2/12 md:static md:right-auto md:self-start md:translate-x-0 md:order-2
+                    md:w-[360px] lg:w-[380px] md:static md:right-auto md:self-stretch md:translate-x-0 md:order-2
                     fixed top-0 right-0 h-full w-72 max-w-[85vw] transform transition-transform duration-300
                     ${mobileOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}
             >
@@ -162,8 +163,8 @@ function LateralNav() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
-                <div className="md:sticky md:top-0">
-                <div className="flex flex-col h-full md:h-auto overflow-y-auto md:overflow-visible no-scrollbar">
+                <div className="md:sticky md:top-0 md:h-screen">
+                <div className="flex flex-col h-full md:h-screen overflow-y-auto no-scrollbar">
                     <Link to="/">
                         <div className="p-4 flex flex-col items-center gap-3 cursor-pointer group">
                             <span className="flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-lg group-hover:scale-105 transition-transform">
@@ -271,8 +272,9 @@ function LateralNav() {
                         </div>
                     </div>
 
-                    <ul className="flex flex-col flex-1 p-3 gap-1">
+                    <ul className="grid grid-cols-1 md:grid-cols-2 flex-1 p-3 gap-1 content-start auto-rows-min">
                         <li className="h-4 mb-2 border2-separator"></li>
+                        <li className="hidden md:block h-4 mb-2 border2-separator"></li>
 
                         {mainLinks.map((link) => (
                             <li key={link.path}>

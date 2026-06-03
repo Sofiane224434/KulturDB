@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ReadingCard from '../components/ReadingCard';
 import { readingApi } from '../services/readingApi';
+import { useLibrary } from '../hooks/useLocalStorage';
 
 const normalizeName = (value) =>
   String(value || '')
@@ -58,6 +59,7 @@ function StatBlock({ label, value }) {
 function ReadingDetail() {
   const { type, id } = useParams();
   const navigate = useNavigate();
+  const { isInLibrary, addToLibrary, removeFromLibrary } = useLibrary();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -66,6 +68,7 @@ function ReadingDetail() {
   const [frenchSynopsis, setFrenchSynopsis] = useState('');
   const [characters, setCharacters] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
+  const [inLibrary, setInLibrary] = useState(false);
 
   const isJikanType = type === 'manga' || type === 'manwha' || type === 'light_novel';
 
@@ -124,6 +127,10 @@ function ReadingDetail() {
     loadDetails();
     window.scrollTo(0, 0);
   }, [id, isJikanType, type]);
+
+  useEffect(() => {
+    setInLibrary(isInLibrary(id, type));
+  }, [id, isInLibrary, type]);
 
   const coverUrl = useMemo(() => {
     if (!detail) {
@@ -208,17 +215,54 @@ function ReadingDetail() {
         source: a.source,
       }));
 
+  const handleLibraryToggle = () => {
+    if (!detail) {
+      return;
+    }
+
+    if (inLibrary) {
+      removeFromLibrary(id, type);
+      setInLibrary(false);
+      return;
+    }
+
+    addToLibrary(
+      {
+        id,
+        title,
+        image: coverUrl,
+        year: isJikanType ? detail?.published?.prop?.from?.year || null : detail?.firstPublishDate || null,
+        source: isJikanType ? 'Jikan / MyAnimeList' : 'Open Library',
+      },
+      type,
+      {
+        progressUnit: isJikanType ? 'chapitre' : 'page',
+        progressTotal: isJikanType ? (detail?.chapters || supplement?.scanChapterCount || null) : null,
+      },
+    );
+    setInLibrary(true);
+  };
+
   return (
     <div className="vintage-frame">
       <div className="vintage-frame-top"></div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-8 md:py-12">
-        <button
-          onClick={() => navigate(-1)}
-          className="mb-6 px-4 py-2 text-sm font-display uppercase tracking-wider bg-gray-800 text-gray-300 border-2 border-gray-900"
-        >
-          ← Retour
-        </button>
+        <div className="mb-6 flex flex-wrap gap-2">
+          <button
+            onClick={() => navigate(-1)}
+            className="px-4 py-2 text-sm font-display uppercase tracking-wider bg-gray-800 text-gray-300 border-2 border-gray-900"
+          >
+            ← Retour
+          </button>
+
+          <button
+            onClick={handleLibraryToggle}
+            className="px-4 py-2 text-sm font-display uppercase tracking-wider bg-black text-gray-200 border-2 border-gray-900"
+          >
+            {inLibrary ? '✓ Retirer de ma bibliothèque' : '+ Ajouter à ma bibliothèque'}
+          </button>
+        </div>
 
         <div className="grid md:grid-cols-[320px_1fr] gap-8 md:gap-10">
           <div>

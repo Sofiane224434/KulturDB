@@ -197,3 +197,131 @@ export const useWatchlist = () => {
     isInWatchlist,
   };
 };
+
+// Hook pour gerer la bibliotheque publique (visionnage + lecture)
+export const useLibrary = () => {
+  const LIBRARY_KEY = 'kulturdb_library';
+  const LEGACY_WATCHLIST_KEY = 'moviedb_watchlist';
+
+  const buildDetailPath = (id, type) => {
+    if (type === 'movie') {
+      return `/movie/${id}`;
+    }
+
+    if (type === 'series' || type === 'anime') {
+      return `/series/${id}`;
+    }
+
+    return `/reading/${type}/${id}`;
+  };
+
+  const normalizeLibraryItem = (item) => {
+    const inferredTitle = item.title || item.name || 'Titre indisponible';
+    const inferredType = item.type || 'movie';
+
+    return {
+      id: String(item.id),
+      type: inferredType,
+      title: inferredTitle,
+      image: item.image || null,
+      poster_path: item.poster_path || null,
+      year: item.year || null,
+      status: item.status || 'to_start',
+      progressCurrent: Number.isFinite(item.progressCurrent) ? item.progressCurrent : 0,
+      progressTotal: Number.isFinite(item.progressTotal) ? item.progressTotal : null,
+      progressUnit: item.progressUnit || 'element',
+      notes: item.notes || '',
+      source: item.source || null,
+      detailPath: item.detailPath || buildDetailPath(item.id, inferredType),
+      addedAt: item.addedAt || Date.now(),
+      updatedAt: item.updatedAt || Date.now(),
+    };
+  };
+
+  const getLibrary = () => {
+    const current = localStorage.getItem(LIBRARY_KEY);
+    if (current) {
+      const parsed = JSON.parse(current);
+      return Array.isArray(parsed) ? parsed.map(normalizeLibraryItem) : [];
+    }
+
+    // Migration silencieuse de l'ancienne watchlist vers la bibliotheque
+    const legacy = localStorage.getItem(LEGACY_WATCHLIST_KEY);
+    if (!legacy) {
+      return [];
+    }
+
+    const migrated = (JSON.parse(legacy) || []).map(normalizeLibraryItem);
+    localStorage.setItem(LIBRARY_KEY, JSON.stringify(migrated));
+    return migrated;
+  };
+
+  const saveLibrary = (items) => {
+    localStorage.setItem(LIBRARY_KEY, JSON.stringify(items));
+    return items;
+  };
+
+  const addToLibrary = (item, type, extra = {}) => {
+    const library = getLibrary();
+    const normalizedId = String(item.id);
+    const existing = library.find((entry) => entry.id === normalizedId && entry.type === type);
+
+    if (existing) {
+      return library;
+    }
+
+    const nextItem = normalizeLibraryItem({
+      id: normalizedId,
+      type,
+      title: item.title || item.name,
+      image: item.image || null,
+      poster_path: item.poster_path || null,
+      year: item.year || null,
+      source: item.source || null,
+      detailPath: buildDetailPath(normalizedId, type),
+      ...extra,
+      addedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    return saveLibrary([nextItem, ...library]);
+  };
+
+  const removeFromLibrary = (id, type) => {
+    const library = getLibrary();
+    const normalizedId = String(id);
+    const updated = library.filter((entry) => !(entry.id === normalizedId && entry.type === type));
+    return saveLibrary(updated);
+  };
+
+  const isInLibrary = (id, type) => {
+    const normalizedId = String(id);
+    return getLibrary().some((entry) => entry.id === normalizedId && entry.type === type);
+  };
+
+  const updateLibraryItem = (id, type, patch = {}) => {
+    const library = getLibrary();
+    const normalizedId = String(id);
+    const updated = library.map((entry) => {
+      if (entry.id !== normalizedId || entry.type !== type) {
+        return entry;
+      }
+
+      return normalizeLibraryItem({
+        ...entry,
+        ...patch,
+        updatedAt: Date.now(),
+      });
+    });
+
+    return saveLibrary(updated);
+  };
+
+  return {
+    getLibrary,
+    addToLibrary,
+    removeFromLibrary,
+    updateLibraryItem,
+    isInLibrary,
+  };
+};

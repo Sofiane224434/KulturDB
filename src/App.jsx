@@ -20,6 +20,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
 import OAuthSuccess from './pages/OAuthSuccess';
+import Library from './pages/Library';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function TopAuthActions() {
@@ -67,7 +68,7 @@ function App() {
     return (
         <Router>
             <div className="min-h-screen bg-[#f5f5f0] text-gray-900 font-serif">
-                <div className="flex flex-col md:flex-row md:items-start">
+                <div className="flex flex-col md:flex-row md:items-start md:min-h-screen">
                     <main className="flex-1 min-w-0 order-2 md:order-1">
                         <TopAuthActions />
                         <Routes>
@@ -92,8 +93,8 @@ function App() {
                                     </ProtectedRoute>
                                 }
                             />
-                            <Route path="/watchlist" element={<Navigate to="/manga" replace />} />
-                            <Route path="/library" element={<Navigate to="/manga" replace />} />
+                            <Route path="/watchlist" element={<Navigate to="/library" replace />} />
+                            <Route path="/library" element={<Library />} />
                             <Route path="/login" element={<Login />} />
                             <Route path="/register" element={<Register />} />
                             <Route path="/auth/verify-email" element={<VerifyEmail />} />

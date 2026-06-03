@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import MediaCard from '../components/MediaCard';
 import Modal from '../components/Modal';
 import { tmdbService } from '../services/tmdb';
-import { useFavorites, useComments, useRatings } from '../hooks/useLocalStorage';
+import { useFavorites, useComments, useRatings, useLibrary } from '../hooks/useLocalStorage';
 
 function SeriesDetail() {
     const { id } = useParams();
@@ -18,8 +18,10 @@ function SeriesDetail() {
     const { isFavorite, addFavorite, removeFavorite } = useFavorites();
     const { getComments, addComment, deleteComment } = useComments();
     const { getRating, setRating } = useRatings();
+    const { isInLibrary, addToLibrary, removeFromLibrary } = useLibrary();
     
     const [isFav, setIsFav] = useState(false);
+    const [inLibrary, setInLibrary] = useState(false);
     const [userRating, setUserRating] = useState(0);
     const [selectedSeason, setSelectedSeason] = useState(null);
     const [seasonDetails, setSeasonDetails] = useState(null);
@@ -34,6 +36,7 @@ function SeriesDetail() {
                 ]);
                 setSeries(seriesData);
                 setIsFav(isFavorite(parseInt(id)));
+                setInLibrary(isInLibrary(id, 'series'));
                 setUserRating(getRating(id));
                 setComments(getComments(id));
                 
@@ -81,6 +84,34 @@ function SeriesDetail() {
     const handleRating = (rating) => {
         setRating(id, rating);
         setUserRating(rating);
+    };
+
+    const handleLibraryToggle = () => {
+        if (!series) {
+            return;
+        }
+
+        if (inLibrary) {
+            removeFromLibrary(id, 'series');
+            setInLibrary(false);
+            return;
+        }
+
+        addToLibrary(
+            {
+                id: series.id,
+                title: series.name,
+                poster_path: series.poster_path,
+                year: series.first_air_date ? new Date(series.first_air_date).getFullYear() : null,
+                source: 'TMDB',
+            },
+            'series',
+            {
+                progressUnit: 'episode',
+                progressTotal: Number.isFinite(series.number_of_episodes) ? series.number_of_episodes : null,
+            },
+        );
+        setInLibrary(true);
     };
 
     const handleSeasonClick = async (season) => {
@@ -188,9 +219,12 @@ function SeriesDetail() {
                             {isFav ? '★ Retirer des favoris' : '☆ Ajouter aux favoris'}
                         </button>
                         
-                        <div className="w-full mb-6 px-6 py-3 font-display uppercase tracking-wider bg-gray-700 text-gray-400 border-2 border-gray-800 text-center">
-                            Base perso désactivée temporairement
-                        </div>
+                        <button
+                            onClick={handleLibraryToggle}
+                            className="w-full mb-6 px-6 py-3 font-display uppercase tracking-wider bg-gray-700 text-gray-200 hover:text-white transition-colors border-2 border-gray-800"
+                        >
+                            {inLibrary ? '✓ Retirer de ma bibliothèque' : '+ Ajouter à ma bibliothèque'}
+                        </button>
                         
                         {/* Infos supplémentaires */}
                         <div className="bg-white border-2 border-gray-400 p-6">
