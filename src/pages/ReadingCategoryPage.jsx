@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ReadingCard from '../components/ReadingCard';
 import Pagination from '../components/Pagination';
 import { readingApi } from '../services/readingApi';
@@ -24,14 +25,17 @@ const CATEGORY_CONFIG = {
 
 function ReadingCategoryPage({ category }) {
   const config = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.manga;
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const page = Math.max(1, Number(searchParams.get('page') || '1'));
 
   useEffect(() => {
-    setPage(1);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('page');
+    setSearchParams(nextParams, { replace: true });
   }, [category]);
 
   useEffect(() => {
@@ -54,6 +58,16 @@ function ReadingCategoryPage({ category }) {
     loadCatalog();
     window.scrollTo(0, 0);
   }, [config, page]);
+
+  const handlePageChange = (nextPage) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextPage <= 1) {
+      nextParams.delete('page');
+    } else {
+      nextParams.set('page', String(nextPage));
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
 
   return (
     <div className="vintage-frame">
@@ -85,7 +99,7 @@ function ReadingCategoryPage({ category }) {
               ))}
             </div>
 
-            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+            <Pagination page={page} totalPages={totalPages} onPageChange={handlePageChange} />
           </>
         )}
       </div>

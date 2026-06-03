@@ -26,12 +26,12 @@ export const tmdbService = {
 
   // Séries
   getPopularSeries: async (page = 1) => {
-    const response = await fetch(`${BASE_URL}/tv/popular?api_key=${API_KEY}&language=fr-FR&page=${page}`);
+    const response = await fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&without_genres=16&sort_by=popularity.desc&page=${page}`);
     return response.json();
   },
 
   getTrendingSeries: async (timeWindow = 'week') => {
-    const response = await fetch(`${BASE_URL}/trending/tv/${timeWindow}?api_key=${API_KEY}&language=fr-FR`);
+    const response = await fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&without_genres=16&sort_by=popularity.desc&page=1`);
     return response.json();
   },
 
@@ -54,7 +54,13 @@ export const tmdbService = {
 
   searchSeries: async (query, page = 1) => {
     const response = await fetch(`${BASE_URL}/search/tv?api_key=${API_KEY}&language=fr-FR&query=${encodeURIComponent(query)}&page=${page}`);
-    return response.json();
+    const data = await response.json();
+    return {
+      ...data,
+      results: Array.isArray(data?.results)
+        ? data.results.filter((item) => !Array.isArray(item.genre_ids) || !item.genre_ids.includes(16))
+        : [],
+    };
   },
 
   // Recherche multi (films + séries)

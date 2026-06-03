@@ -62,6 +62,8 @@ Variables OAuth GitHub:
 - Bibliotheque: statuts (a commencer, en cours, a reprendre, termine), progression bornee au total existant, mapping saison/episode pour series/anime, et pas de progression chiffree pour les films
 - Bibliotheque: rafraichissement periodique des metadonnees TMDB (episodes, saisons, durees) pour garder les compteurs plus a jour
 - Bibliotheque: recherche par titre + filtres type/statut
+- Catalogues films/series/anime: pagination avec sauts de 5 pages, acces direct par URL via `?page=...`, tri (note, alphabetique), et filtre par acteur/realisateur/equipe sur la page courante
+- Les anime sont exclus de la page /series et de la source series utilisee sur l accueil/recherche series
 - Tops personnels visibles dans /library (top films, top series, top anime, top manga, etc.), avec gestion locale via le stockage navigateur
 - Alias legacy conserve: /watchlist redirige vers /library
 - Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, et gestion d amis depuis /profile (compte connecte)
