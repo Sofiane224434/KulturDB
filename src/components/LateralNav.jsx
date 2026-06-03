@@ -207,7 +207,7 @@ function LateralNav() {
                         <button
                             key={filterButton.key}
                             onClick={() => setSearchFilter(filterButton.key)}
-                            className={`px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === filterButton.key ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'}`}
+                            className={`px-1 py-0.5 text-[11px] font-display uppercase tracking-wider transition-colors ${searchFilter === filterButton.key ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'}`}
                         >
                             {filterButton.label}
                         </button>
@@ -290,7 +290,7 @@ function LateralNav() {
                     <li key={link.path}>
                         <Link
                             to={link.path}
-                            className={`block py-2 px-3 text-base font-display uppercase tracking-widest transition-all border-l-2 ${(`${location.pathname}${location.search}` === link.path || location.pathname === link.path)
+                            className={`block py-1.5 px-2.5 text-sm font-display uppercase tracking-wider transition-all border-l-2 ${(`${location.pathname}${location.search}` === link.path || location.pathname === link.path)
                                     ? 'text-gray-300 bg-gray-900 border-gray-500'
                                     : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900 border-transparent hover:border-gray-500'
                                 }`}
@@ -357,7 +357,7 @@ function LateralNav() {
                     <button
                         onClick={toggleDesktopSidebar}
                         aria-label={desktopCollapsed ? 'Ouvrir la sidebar' : 'Replier la sidebar'}
-                        className="px-2 py-1 text-xs font-display uppercase tracking-wider text-gray-400 border border-gray-700 hover:text-gray-200 hover:border-gray-500"
+                        className="px-1.5 py-0.5 text-[11px] font-display uppercase tracking-wider text-gray-400 border border-gray-700 hover:text-gray-200 hover:border-gray-500"
                     >
                         {desktopCollapsed ? '>>' : '<<'}
                     </button>
