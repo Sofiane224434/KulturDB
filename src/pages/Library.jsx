@@ -306,6 +306,10 @@ function Library() {
             const inputValue = Object.prototype.hasOwnProperty.call(progressDrafts, progressKey)
               ? progressDrafts[progressKey]
               : String(item.progressCurrent || 0);
+            const parsedDraftProgress = Number.parseInt(String(inputValue || '').trim(), 10);
+            const effectiveProgressCurrent = Number.isFinite(parsedDraftProgress)
+              ? Math.max(0, parsedDraftProgress)
+              : (Number.isFinite(item.progressCurrent) ? item.progressCurrent : 0);
 
             return (
               <article key={`${item.type}-${item.id}`} className="border-2 border-gray-300 bg-white p-4">
@@ -379,10 +383,10 @@ function Library() {
                           </span>
                         </div>
 
-                        {(item.type === 'series' || item.type === 'anime') && item.progressCurrent > 0 && (
+                        {(item.type === 'series' || item.type === 'anime') && effectiveProgressCurrent > 0 && (
                           <p className="mt-2 text-xs font-serif text-gray-600">
                             {(() => {
-                              const seasonPosition = getSeasonPosition(item.progressCurrent, item.seasonBreakdown);
+                              const seasonPosition = getSeasonPosition(effectiveProgressCurrent, item.seasonBreakdown);
                               if (!seasonPosition) {
                                 return 'Saison: information indisponible';
                               }
