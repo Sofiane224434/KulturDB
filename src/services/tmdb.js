@@ -20,6 +20,8 @@ const TV_SORT_MAP = {
 
 const BLOCKED_TITLE_CHARS_REGEX = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af]/;
 const ANIME_RESULTS_LIMIT = 60;
+const ANIME_COUNTRY_WHITELIST = new Set(['JP', 'KR', 'CN', 'TW']);
+const ANIME_LANGUAGE_WHITELIST = new Set(['ja', 'ko', 'zh']);
 const ANIME_DISCOVER_VARIANTS = [
   'with_genres=16',
   'with_genres=16&with_origin_country=JP',
@@ -96,6 +98,20 @@ function sortAnimeResults(results, sortKey = 'popularity') {
 function resolveSortBy(sortKey, mediaType = 'tv') {
   const map = mediaType === 'movie' ? MOVIE_SORT_MAP : TV_SORT_MAP;
   return map[sortKey] || map.popularity;
+}
+
+function isLikelyAnimeItem(item) {
+  const originCountries = Array.isArray(item?.origin_country)
+    ? item.origin_country.map((country) => String(country || '').toUpperCase())
+    : [];
+  const originalLanguage = String(item?.original_language || '').toLowerCase();
+  const hasWhitelistedCountry = originCountries.some((country) => ANIME_COUNTRY_WHITELIST.has(country));
+  const hasWhitelistedLanguage = ANIME_LANGUAGE_WHITELIST.has(originalLanguage);
+
+  // Si TMDB a des metadonnees incomplètes, on garde l'item quand son titre original contient des caracteres CJK.
+  const hasCjkTitle = hasBlockedTitleChars(item?.original_name || item?.name || '');
+
+  return hasWhitelistedCountry || hasWhitelistedLanguage || hasCjkTitle;
 }
 
 async function fetchAnimeDiscoverVariant(query, page, sortBy) {
@@ -207,7 +223,8 @@ export const tmdbService = {
       mergedMap.set(item.id, item);
     }
 
-    const mergedResults = sortAnimeResults(Array.from(mergedMap.values()), sortKey).slice(0, ANIME_RESULTS_LIMIT);
+    const filteredResults = Array.from(mergedMap.values()).filter(isLikelyAnimeItem);
+    const mergedResults = sortAnimeResults(filteredResults, sortKey).slice(0, ANIME_RESULTS_LIMIT);
 
     const referenceData = successfulResults[0] || {};
     const totalPages = successfulResults.reduce((maxPages, dataset) => {
