@@ -142,7 +142,6 @@ export function searchUsers(query, currentUserId, limit = 20) {
         .prepare(
             `SELECT
                 u.id,
-                u.email,
                 u.display_name,
                 u.provider,
                 u.created_at,
@@ -159,8 +158,7 @@ export function searchUsers(query, currentUserId, limit = 20) {
              WHERE u.id <> @currentUserId
                AND u.email_verified = 1
                AND (
-                    lower(u.display_name) LIKE @query
-                 OR lower(u.email) LIKE @query
+                                        lower(u.display_name) LIKE @query
                )
              ORDER BY lower(u.display_name) ASC
              LIMIT @limit`,
@@ -219,7 +217,6 @@ export function listFriendsForUser(userId) {
         .prepare(
             `SELECT
                 u.id,
-                u.email,
                 u.display_name,
                 u.provider,
                 u.created_at,
@@ -244,7 +241,6 @@ export function listIncomingFriendRequests(userId) {
             `SELECT
                 f.id AS request_id,
                 u.id,
-                u.email,
                 u.display_name,
                 u.provider,
                 f.created_at
@@ -263,7 +259,6 @@ export function listOutgoingFriendRequests(userId) {
             `SELECT
                 f.id AS request_id,
                 u.id,
-                u.email,
                 u.display_name,
                 u.provider,
                 f.created_at

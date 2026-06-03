@@ -343,7 +343,7 @@ function Profile() {
                   type="search"
                   value={friendQuery}
                   onChange={(event) => setFriendQuery(event.target.value)}
-                  placeholder="Rechercher un pseudo ou un email"
+                  placeholder="Rechercher un pseudo"
                   className="flex-1 px-3 py-2 border border-gray-400 bg-white text-gray-800 font-serif"
                 />
                 <button
@@ -361,7 +361,6 @@ function Profile() {
                     <div key={person.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-gray-300 bg-gray-50 p-3">
                       <div>
                         <p className="font-display uppercase tracking-wider text-gray-700">{person.displayName}</p>
-                        <p className="font-serif text-sm text-gray-500">{person.email}</p>
                       </div>
                       {person.relationStatus === 'friend' ? (
                         <button
@@ -406,7 +405,6 @@ function Profile() {
                       <div key={friend.id} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-3">
                         <div>
                           <p className="font-display uppercase tracking-wider text-gray-700">{friend.displayName}</p>
-                          <p className="font-serif text-xs text-gray-500">{friend.email}</p>
                         </div>
                         <button
                           type="button"
@@ -428,7 +426,6 @@ function Profile() {
                       <div key={request.requestId} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-3">
                         <div>
                           <p className="font-display uppercase tracking-wider text-gray-700">{request.displayName}</p>
-                          <p className="font-serif text-xs text-gray-500">{request.email}</p>
                         </div>
                         <button
                           type="button"
@@ -450,7 +447,6 @@ function Profile() {
                       <div key={request.requestId} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-3">
                         <div>
                           <p className="font-display uppercase tracking-wider text-gray-700">{request.displayName}</p>
-                          <p className="font-serif text-xs text-gray-500">{request.email}</p>
                         </div>
                         <button
                           type="button"

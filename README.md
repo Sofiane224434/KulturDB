@@ -67,6 +67,7 @@ Variables OAuth GitHub:
 - Tops personnels visibles dans /library (top films, top series, top anime, top manga, etc.), avec gestion locale via le stockage navigateur
 - Alias legacy conserve: /watchlist redirige vers /library
 - Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, et gestion d amis depuis /profile (compte connecte)
+- Profil amis: l email des autres utilisateurs est masque (recherche, amis, demandes), recherche par pseudo uniquement
 - Profil: le temps regarde est affiche en mois / jours / heures
 - Bibliotheque/Tops: reclassification automatique des anciens anime stockes par erreur comme series lors du rafraichissement TMDB
 - Bibliotheque/Tops: reclassification anime renforcee via croisement TMDB + Jikan (MyAnimeList) pour eviter les faux `series`

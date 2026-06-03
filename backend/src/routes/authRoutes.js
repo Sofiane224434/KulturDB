@@ -73,19 +73,19 @@ function toFriendRelation(currentUserId, row) {
 
     return {
         id: row.id,
-        email: row.email,
         displayName: row.display_name,
         provider: row.provider,
         createdAt: row.created_at,
         relationship,
+        relationStatus: relationship,
         requestId: row.friendship_id || null,
+        friendshipId: row.friendship_id || null,
     };
 }
 
 function toFriendListItem(row) {
     return {
         id: row.id,
-        email: row.email,
         displayName: row.display_name,
         provider: row.provider,
         createdAt: row.created_at,
