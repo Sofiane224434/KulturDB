@@ -69,6 +69,8 @@ Variables OAuth GitHub:
 - Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, et gestion d amis depuis /profile (compte connecte)
 - Profil: le temps regarde est affiche en mois / jours / heures
 - Bibliotheque/Tops: reclassification automatique des anciens anime stockes par erreur comme series lors du rafraichissement TMDB
+- Bibliotheque/Tops: reclassification anime renforcee via croisement TMDB + Jikan (MyAnimeList) pour eviter les faux `series`
+- Bibliotheque: nombre total d episodes TV corrige avec fusion des sources (TMDB + Jikan, valeur la plus fiable)
 - Tops: ordre manuel possible a l interieur de chaque categorie (monter / descendre)
 
 Base lecture via API:

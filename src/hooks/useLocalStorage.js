@@ -1,11 +1,125 @@
 import { tmdbService } from '../services/tmdb';
 
+const JIKAN_BASE_URL = 'https://api.jikan.moe/v4';
+const animeSignalCache = new Map();
+
+function normalizeForMatch(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function getYearFromDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isFinite(date.getFullYear()) ? date.getFullYear() : null;
+}
+
+function scoreJikanCandidate(titleNormalized, expectedYear, candidate) {
+  const candidateTitleNormalized = normalizeForMatch(
+    candidate?.title || candidate?.title_english || candidate?.title_japanese,
+  );
+
+  if (!candidateTitleNormalized) {
+    return -Infinity;
+  }
+
+  let score = 0;
+  if (candidateTitleNormalized === titleNormalized) {
+    score += 7;
+  }
+
+  if (candidateTitleNormalized.includes(titleNormalized) || titleNormalized.includes(candidateTitleNormalized)) {
+    score += 4;
+  }
+
+  if (candidateTitleNormalized.startsWith(titleNormalized) || titleNormalized.startsWith(candidateTitleNormalized)) {
+    score += 2;
+  }
+
+  const candidateYear = getYearFromDate(candidate?.aired?.from);
+  if (expectedYear && candidateYear) {
+    const gap = Math.abs(expectedYear - candidateYear);
+    if (gap === 0) {
+      score += 2;
+    } else if (gap <= 1) {
+      score += 1;
+    }
+  }
+
+  if (candidate?.type === 'TV') {
+    score += 1;
+  }
+
+  return score;
+}
+
+async function fetchJikanAnimeSignal({ title, year }) {
+  const normalizedTitle = normalizeForMatch(title);
+  if (!normalizedTitle) {
+    return null;
+  }
+
+  const cacheKey = `${normalizedTitle}::${year || 'na'}`;
+  if (animeSignalCache.has(cacheKey)) {
+    return animeSignalCache.get(cacheKey);
+  }
+
+  try {
+    const response = await fetch(`${JIKAN_BASE_URL}/anime?q=${encodeURIComponent(title)}&limit=10&sfw=true`);
+    const payload = await response.json();
+    const candidates = Array.isArray(payload?.data) ? payload.data : [];
+
+    let bestCandidate = null;
+    let bestScore = -Infinity;
+
+    for (const candidate of candidates) {
+      const score = scoreJikanCandidate(normalizedTitle, year, candidate);
+      if (score > bestScore) {
+        bestCandidate = candidate;
+        bestScore = score;
+      }
+    }
+
+    const hasSolidMatch = bestCandidate && bestScore >= 5;
+    const signal = hasSolidMatch
+      ? {
+          isAnime: true,
+          episodes: Number.isFinite(bestCandidate?.episodes) ? bestCandidate.episodes : null,
+          source: 'jikan',
+        }
+      : null;
+
+    animeSignalCache.set(cacheKey, signal);
+    return signal;
+  } catch (_error) {
+    animeSignalCache.set(cacheKey, null);
+    return null;
+  }
+}
+
 function isTmdbAnimeDetails(details) {
   const genreIds = Array.isArray(details?.genres) ? details.genres.map((genre) => genre.id) : [];
   const originCountries = Array.isArray(details?.origin_country) ? details.origin_country : [];
   const originalLanguage = String(details?.original_language || '').toLowerCase();
 
   return genreIds.includes(16) && (originCountries.includes('JP') || originalLanguage === 'ja');
+}
+
+async function getAnimeCrossSignal({ title, year, details }) {
+  const tmdbSaysAnime = isTmdbAnimeDetails(details);
+  const jikanSignal = await fetchJikanAnimeSignal({ title, year });
+
+  return {
+    isAnime: tmdbSaysAnime || Boolean(jikanSignal?.isAnime),
+    jikanEpisodes: Number.isFinite(jikanSignal?.episodes) ? jikanSignal.episodes : null,
+  };
 }
 
 // Hook pour gérer les tops (films, series, anime, manga, etc.)
@@ -104,7 +218,13 @@ export const useTopPicks = () => {
 
       try {
         const details = await tmdbService.getSeriesDetails(item.id);
-        if (isTmdbAnimeDetails(details)) {
+        const crossSignal = await getAnimeCrossSignal({
+          title: item.title || details?.name || details?.original_name,
+          year: Number.isFinite(item.year) ? item.year : getYearFromDate(details?.first_air_date),
+          details,
+        });
+
+        if (crossSignal.isAnime) {
           topPicks = replaceTopPick(item.id, 'series', { type: 'anime' });
           hasChanges = true;
         }
@@ -494,9 +614,24 @@ export const useLibrary = () => {
     }
 
     const details = await tmdbService.getSeriesDetails(item.id);
+    const tmdbEpisodes = Number.isFinite(details?.number_of_episodes) && details.number_of_episodes > 0
+      ? details.number_of_episodes
+      : null;
+
+    const crossSignal = await getAnimeCrossSignal({
+      title: item.title || details?.name || details?.original_name,
+      year: Number.isFinite(item.year) ? item.year : getYearFromDate(details?.first_air_date),
+      details,
+    });
+
+    const mergedEpisodeTotal = Math.max(
+      tmdbEpisodes || 0,
+      crossSignal.jikanEpisodes || 0,
+    ) || null;
+
     return {
-      type: isTmdbAnimeDetails(details) ? 'anime' : 'series',
-      progressTotal: Number.isFinite(details?.number_of_episodes) && details.number_of_episodes > 0 ? details.number_of_episodes : null,
+      type: crossSignal.isAnime ? 'anime' : 'series',
+      progressTotal: mergedEpisodeTotal,
       seasonBreakdown: Array.isArray(details?.seasons)
         ? details.seasons
             .filter((season) => season.season_number > 0 && Number.isFinite(season.episode_count) && season.episode_count > 0)
