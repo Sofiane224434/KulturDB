@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { authApi } from '../services/authApi';
 import { useAuth } from '../context/AuthContext';
@@ -6,16 +6,23 @@ import { useAuth } from '../context/AuthContext';
 function VerifyEmail() {
     const [params] = useSearchParams();
     const { loginFromPayload } = useAuth();
+    const requestedTokenRef = useRef(null);
     const [status, setStatus] = useState('loading');
     const [message, setMessage] = useState('Vérification en cours...');
 
     useEffect(() => {
-        const token = params.get('token');
+        const token = String(params.get('token') || '').trim();
         if (!token) {
             setStatus('error');
             setMessage('Lien invalide: token manquant.');
             return;
         }
+
+        // Avoid duplicate verification requests with the same token after rerenders.
+        if (requestedTokenRef.current === token) {
+            return;
+        }
+        requestedTokenRef.current = token;
 
         authApi
             .verifyEmail(token)

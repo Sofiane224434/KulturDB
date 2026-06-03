@@ -383,7 +383,9 @@ router.post('/resend-verification', async (req, res) => {
 });
 
 router.post('/verify-email', (req, res) => {
-    const { token } = req.body || {};
+    const rawToken = String(req.body?.token || '');
+    const token = rawToken.trim().toLowerCase();
+
     if (!token) {
         return res.status(400).json({ message: 'Token requis.' });
     }
