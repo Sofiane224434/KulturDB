@@ -116,6 +116,135 @@ function LateralNav() {
         localStorage.removeItem('searchHistory');
     };
 
+    const navContent = (
+        <>
+            <Link to="/">
+                <div className="p-4 flex flex-col items-center gap-3 cursor-pointer group">
+                    <span className="flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-lg group-hover:scale-105 transition-transform">
+                        <span className="font-display font-bold text-6xl leading-none text-black">K</span>
+                    </span>
+                    <h3 className="text-2xl font-bold text-gray-400 tracking-widest font-display underline decoration-gray-600 decoration-2 underline-offset-4 group-hover:text-gray-300 transition-colors text-center">
+                        <span className="text-3xl">K</span>ULTUR<span className="text-3xl">D</span><span className="text-3xl">B</span>
+                    </h3>
+                </div>
+            </Link>
+
+            <div className="px-3 mb-4" ref={searchRef}>
+                <div className="flex gap-1 mb-2">
+                    <button
+                        onClick={() => setSearchFilter('all')}
+                        className={`flex-1 px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === 'all' ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'
+                            }`}
+                    >
+                        Tous
+                    </button>
+                    <button
+                        onClick={() => setSearchFilter('movie')}
+                        className={`flex-1 px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === 'movie' ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'
+                            }`}
+                    >
+                        Films
+                    </button>
+                    <button
+                        onClick={() => setSearchFilter('tv')}
+                        className={`flex-1 px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === 'tv' ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'
+                            }`}
+                    >
+                        Séries
+                    </button>
+                    <button
+                        onClick={() => setSearchFilter('anime')}
+                        className={`flex-1 px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === 'anime' ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'
+                            }`}
+                    >
+                        Anime
+                    </button>
+                </div>
+                <div className="relative">
+                    <input
+                        ref={searchInputRef}
+                        type="text"
+                        placeholder="Rechercher (Ctrl+K)"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-700 text-gray-300 text-sm font-serif focus:outline-none focus:border-gray-500 transition-colors"
+                    />
+                    {showSuggestions && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 max-h-96 overflow-y-auto z-50">
+                            {suggestions.length > 0 ? (
+                                suggestions.map((item) => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => handleSuggestionClick(item)}
+                                        className="w-full px-3 py-2 text-left hover:bg-gray-800 transition-colors border-b border-gray-800 last:border-b-0"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {item.poster_path && (
+                                                <img
+                                                    src={tmdbService.getImageUrl(item.poster_path, 'w92')}
+                                                    alt={item.title || item.name}
+                                                    className="w-8 h-12 object-cover"
+                                                />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-display text-gray-300 text-xs uppercase tracking-wider truncate">
+                                                    {item.title || item.name}
+                                                </p>
+                                                <p className="font-serif text-xs text-gray-500">
+                                                    {item.media_type === 'movie' ? 'Film' : 'Série'} • {item.release_date || item.first_air_date ? new Date(item.release_date || item.first_air_date).getFullYear() : 'N/A'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))
+                            ) : searchQuery.length >= 2 ? (
+                                <div className="px-3 py-2 text-gray-500 font-serif text-xs">Aucun résultat</div>
+                            ) : null}
+
+                            {searchHistory.length > 0 && searchQuery.length < 2 && (
+                                <>
+                                    <div className="px-3 py-2 flex justify-between items-center border-t border-gray-800">
+                                        <span className="text-xs uppercase tracking-wider text-gray-600 font-display">Historique</span>
+                                        <button onClick={clearHistory} className="text-xs text-gray-500 hover:text-gray-300 font-serif">Effacer</button>
+                                    </div>
+                                    {searchHistory.map((term, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => setSearchQuery(term)}
+                                            className="w-full px-3 py-2 text-left hover:bg-gray-800 transition-colors border-b border-gray-800 last:border-b-0"
+                                        >
+                                            <p className="font-serif text-gray-400 text-xs">🕒 {term}</p>
+                                        </button>
+                                    ))}
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <ul className="grid grid-cols-1 md:grid-cols-2 flex-1 p-3 gap-1 content-start auto-rows-min">
+                <li className="h-4 mb-2 border2-separator"></li>
+                <li className="hidden md:block h-4 mb-2 border2-separator"></li>
+
+                {mainLinks.map((link) => (
+                    <li key={link.path}>
+                        <Link
+                            to={link.path}
+                            className={`block py-2 px-3 text-base font-display uppercase tracking-widest transition-all border-l-2 ${(`${location.pathname}${location.search}` === link.path || location.pathname === link.path)
+                                    ? 'text-gray-300 bg-gray-900 border-gray-500'
+                                    : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900 border-transparent hover:border-gray-500'
+                                }`}
+                        >
+                            {link.name}
+                        </Link>
+                    </li>
+                ))}
+            </ul>
+        </>
+    );
+
     return (
         <>
             {/* Barre top mobile */}
@@ -148,10 +277,7 @@ function LateralNav() {
             )}
 
             <nav
-                className={`bg-black z-50 border-l-2 border-black
-                    md:w-[320px] lg:w-[336px] md:fixed md:top-0 md:right-0 md:self-start md:h-screen md:translate-x-0 md:transform-none md:order-2
-                    fixed top-0 right-0 h-full w-72 max-w-[85vw] transform transition-transform duration-300
-                    ${mobileOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}
+                className={`md:hidden bg-black z-50 border-l-2 border-black fixed top-0 right-0 h-full w-72 max-w-[85vw] transform transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
             >
                 {/* Bouton fermer mobile */}
                 <button
@@ -163,137 +289,16 @@ function LateralNav() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
-                <div>
-                <div className="flex flex-col h-full md:h-screen overflow-y-auto no-scrollbar">
-                    <Link to="/">
-                        <div className="p-4 flex flex-col items-center gap-3 cursor-pointer group">
-                            <span className="flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-lg group-hover:scale-105 transition-transform">
-                                <span className="font-display font-bold text-6xl leading-none text-black">K</span>
-                            </span>
-                            <h3 className="text-2xl font-bold text-gray-400 tracking-widest font-display underline decoration-gray-600 decoration-2 underline-offset-4 group-hover:text-gray-300 transition-colors text-center">
-                                <span className="text-3xl">K</span>ULTUR<span className="text-3xl">D</span><span className="text-3xl">B</span>
-                            </h3>
-                        </div>
-                    </Link>
-
-                    {/* Barre de recherche */}
-                    <div className="px-3 mb-4" ref={searchRef}>
-                        <div className="flex gap-1 mb-2">
-                            <button
-                                onClick={() => setSearchFilter('all')}
-                                className={`flex-1 px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === 'all' ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'
-                                    }`}
-                            >
-                                Tous
-                            </button>
-                            <button
-                                onClick={() => setSearchFilter('movie')}
-                                className={`flex-1 px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === 'movie' ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'
-                                    }`}
-                            >
-                                Films
-                            </button>
-                            <button
-                                onClick={() => setSearchFilter('tv')}
-                                className={`flex-1 px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === 'tv' ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'
-                                    }`}
-                            >
-                                Séries
-                            </button>
-                            <button
-                                onClick={() => setSearchFilter('anime')}
-                                className={`flex-1 px-1 py-1 text-xs font-display uppercase tracking-wider transition-colors ${searchFilter === 'anime' ? 'bg-gray-700 text-gray-300' : 'bg-gray-900 text-gray-500 hover:text-gray-300'
-                                    }`}
-                            >
-                                Anime
-                            </button>
-                        </div>
-                        <div className="relative">
-                            <input
-                                ref={searchInputRef}
-                                type="text"
-                                placeholder="Rechercher (Ctrl+K)"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
-                                className="w-full px-3 py-2 bg-gray-900 border border-gray-700 text-gray-300 text-sm font-serif focus:outline-none focus:border-gray-500 transition-colors"
-                            />
-                            {showSuggestions && (
-                                <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 max-h-96 overflow-y-auto z-50">
-                                    {suggestions.length > 0 ? (
-                                        suggestions.map((item) => (
-                                            <button
-                                                key={item.id}
-                                                onClick={() => handleSuggestionClick(item)}
-                                                className="w-full px-3 py-2 text-left hover:bg-gray-800 transition-colors border-b border-gray-800 last:border-b-0"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    {item.poster_path && (
-                                                        <img
-                                                            src={tmdbService.getImageUrl(item.poster_path, 'w92')}
-                                                            alt={item.title || item.name}
-                                                            className="w-8 h-12 object-cover"
-                                                        />
-                                                    )}
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="font-display text-gray-300 text-xs uppercase tracking-wider truncate">
-                                                            {item.title || item.name}
-                                                        </p>
-                                                        <p className="font-serif text-xs text-gray-500">
-                                                            {item.media_type === 'movie' ? 'Film' : 'Série'} • {item.release_date || item.first_air_date ? new Date(item.release_date || item.first_air_date).getFullYear() : 'N/A'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </button>
-                                        ))
-                                    ) : searchQuery.length >= 2 ? (
-                                        <div className="px-3 py-2 text-gray-500 font-serif text-xs">Aucun résultat</div>
-                                    ) : null}
-
-                                    {searchHistory.length > 0 && searchQuery.length < 2 && (
-                                        <>
-                                            <div className="px-3 py-2 flex justify-between items-center border-t border-gray-800">
-                                                <span className="text-xs uppercase tracking-wider text-gray-600 font-display">Historique</span>
-                                                <button onClick={clearHistory} className="text-xs text-gray-500 hover:text-gray-300 font-serif">Effacer</button>
-                                            </div>
-                                            {searchHistory.map((term, index) => (
-                                                <button
-                                                    key={index}
-                                                    onClick={() => setSearchQuery(term)}
-                                                    className="w-full px-3 py-2 text-left hover:bg-gray-800 transition-colors border-b border-gray-800 last:border-b-0"
-                                                >
-                                                    <p className="font-serif text-gray-400 text-xs">🕒 {term}</p>
-                                                </button>
-                                            ))}
-                                        </>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <ul className="grid grid-cols-1 md:grid-cols-2 flex-1 p-3 gap-1 content-start auto-rows-min">
-                        <li className="h-4 mb-2 border2-separator"></li>
-                        <li className="hidden md:block h-4 mb-2 border2-separator"></li>
-
-                        {mainLinks.map((link) => (
-                            <li key={link.path}>
-                                <Link
-                                    to={link.path}
-                                    className={`block py-2 px-3 text-base font-display uppercase tracking-widest transition-all border-l-2 ${(`${location.pathname}${location.search}` === link.path || location.pathname === link.path)
-                                            ? 'text-gray-300 bg-gray-900 border-gray-500'
-                                            : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900 border-transparent hover:border-gray-500'
-                                        }`}
-                                >
-                                    {link.name}
-                                </Link>
-                            </li>
-                        ))}
-
-                    </ul>
-                </div>
+                <div className="flex flex-col h-full overflow-y-auto no-scrollbar">
+                    {navContent}
                 </div>
             </nav>
+
+            <aside className="hidden md:block md:w-75 lg:w-80 md:sticky md:top-0 md:h-screen md:self-start bg-black border-l-2 border-black">
+                <div className="flex flex-col h-screen overflow-y-auto no-scrollbar">
+                    {navContent}
+                </div>
+            </aside>
         </>
     );
 }
