@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { tmdbService } from '../services/tmdb';
+import { useLibrary } from '../hooks/useLocalStorage';
 
 // Mapping des genres
 const GENRES = {
@@ -12,27 +14,59 @@ const GENRES = {
 };
 
 function MediaCard({ item, type }) {
+    const { isInLibrary, addToLibrary } = useLibrary();
     const posterUrl = tmdbService.getImageUrl(item.poster_path, 'w342');
     const title = type === 'movie' ? item.title : item.name;
     const releaseDate = type === 'movie' ? item.release_date : item.first_air_date;
     const releaseYear = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
     const detailUrl = `/${type}/${item.id}`;
+    const [inLibraryState, setInLibraryState] = useState(false);
     
     // Récupérer les 2 premiers genres
     const genres = item.genre_ids?.slice(0, 2).map(id => GENRES[id]).filter(Boolean) || [];
+
+    useEffect(() => {
+        setInLibraryState(isInLibrary(item.id, type));
+    }, [item.id, isInLibrary, type]);
+
+    const handleQuickAdd = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (inLibraryState) {
+            return;
+        }
+
+        addToLibrary(
+            {
+                id: item.id,
+                title,
+                poster_path: item.poster_path,
+                year: releaseYear !== 'N/A' ? releaseYear : null,
+                source: 'TMDB',
+            },
+            type,
+            {
+                progressUnit: type === 'movie' ? 'film' : 'episode',
+                progressTotal: type === 'movie' ? 1 : null,
+            },
+        );
+        setInLibraryState(true);
+    };
     
     return (
-        <Link to={detailUrl}>
-            <article className="group cursor-pointer">
+        <div className="relative group">
+            <Link to={detailUrl} className="block">
+            <article className="cursor-pointer">
                 <div className="relative overflow-hidden border-2 border-gray-800 bg-black">
                     {posterUrl ? (
                         <img 
                             src={posterUrl} 
                             alt={title}
-                            className="w-full aspect-[2/3] object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                            className="w-full aspect-2/3 object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
                         />
                     ) : (
-                        <div className="w-full aspect-[2/3] bg-gray-900 flex items-center justify-center">
+                        <div className="w-full aspect-2/3 bg-gray-900 flex items-center justify-center">
                             <span className="text-gray-600 text-4xl font-display">?</span>
                         </div>
                     )}
@@ -61,7 +95,16 @@ function MediaCard({ item, type }) {
                     )}
                 </div>
             </article>
-        </Link>
+            </Link>
+
+            <button
+                onClick={handleQuickAdd}
+                aria-label={inLibraryState ? 'Déjà dans la bibliothèque' : 'Ajouter à ma bibliothèque'}
+                className={`absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 border-2 font-display text-lg leading-none flex items-center justify-center transition-colors ${inLibraryState ? 'bg-gray-700 text-gray-200 border-gray-900' : 'bg-black text-gray-200 border-gray-800 hover:text-white'}`}
+            >
+                {inLibraryState ? '✓' : '+'}
+            </button>
+        </div>
     );
 }
 
