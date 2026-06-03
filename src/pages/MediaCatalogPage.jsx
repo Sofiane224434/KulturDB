@@ -260,10 +260,6 @@ function MediaCatalogPage({ title, initialLetter, mediaType, loadPage }) {
           </select>
         </section>
 
-        <p className="mb-4 font-serif text-base text-gray-600">
-          URL pilotable: utilisez ?page=12, ?sort=rating_desc, ?creditFilter=nom, etc.
-        </p>
-
         {loading ? (
           <div className="text-center py-20">
             <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-gray-800 border-t-transparent"></div>
