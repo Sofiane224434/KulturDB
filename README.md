@@ -68,6 +68,8 @@ Variables OAuth GitHub:
 - Tops personnels visibles dans /library (top films, top series, top anime, top manga, etc.), avec gestion locale via le stockage navigateur
 - Alias legacy conserve: /watchlist redirige vers /library
 - Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, et gestion d amis depuis /profile (compte connecte)
+- Profil: acces au profil d un autre utilisateur depuis la recherche/les listes d amis (`/profile/:userId`)
+- Navigation: sidebar desktop repliable/depliable avec memorisation locale de l etat
 - Profil amis: l email des autres utilisateurs est masque (recherche, amis, demandes), recherche par pseudo uniquement
 - Profil: le temps regarde est affiche en mois / jours / heures
 - Bibliotheque/Tops: reclassification automatique des anciens anime stockes par erreur comme series lors du rafraichissement TMDB
@@ -103,6 +105,7 @@ Routes API auth:
 - GET /api/auth/me
 - PATCH /api/auth/me/display-name
 - GET /api/auth/users/search?query=...
+- GET /api/auth/users/:userId
 - GET /api/auth/friends
 - POST /api/auth/friends/requests
 - POST /api/auth/friends/requests/:requestId/accept

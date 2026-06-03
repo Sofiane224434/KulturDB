@@ -361,6 +361,7 @@ function Profile() {
                     <div key={person.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-gray-300 bg-gray-50 p-3">
                       <div>
                         <p className="font-display uppercase tracking-wider text-gray-700">{person.displayName}</p>
+                        <Link to={`/profile/${person.id}`} className="font-serif text-sm text-gray-500 underline hover:text-gray-700">Voir profil</Link>
                       </div>
                       {person.relationStatus === 'friend' ? (
                         <button
@@ -405,6 +406,7 @@ function Profile() {
                       <div key={friend.id} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-3">
                         <div>
                           <p className="font-display uppercase tracking-wider text-gray-700">{friend.displayName}</p>
+                          <Link to={`/profile/${friend.id}`} className="font-serif text-sm text-gray-500 underline hover:text-gray-700">Voir profil</Link>
                         </div>
                         <button
                           type="button"
@@ -426,6 +428,7 @@ function Profile() {
                       <div key={request.requestId} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-3">
                         <div>
                           <p className="font-display uppercase tracking-wider text-gray-700">{request.displayName}</p>
+                          <Link to={`/profile/${request.id}`} className="font-serif text-sm text-gray-500 underline hover:text-gray-700">Voir profil</Link>
                         </div>
                         <button
                           type="button"
@@ -447,6 +450,7 @@ function Profile() {
                       <div key={request.requestId} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-3">
                         <div>
                           <p className="font-display uppercase tracking-wider text-gray-700">{request.displayName}</p>
+                          <Link to={`/profile/${request.id}`} className="font-serif text-sm text-gray-500 underline hover:text-gray-700">Voir profil</Link>
                         </div>
                         <button
                           type="button"

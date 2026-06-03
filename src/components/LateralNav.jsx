@@ -12,6 +12,7 @@ function LateralNav() {
     const [searchFilter, setSearchFilter] = useState('all');
     const [searchHistory, setSearchHistory] = useState([]);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [desktopCollapsed, setDesktopCollapsed] = useState(false);
     const searchRef = useRef(null);
     const searchInputRef = useRef(null);
 
@@ -65,6 +66,17 @@ function LateralNav() {
         const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
         setSearchHistory(history);
     }, []);
+
+    useEffect(() => {
+        const stored = localStorage.getItem('kulturdb_sidebar_collapsed');
+        setDesktopCollapsed(stored === '1');
+    }, []);
+
+    const toggleDesktopSidebar = () => {
+        const nextValue = !desktopCollapsed;
+        setDesktopCollapsed(nextValue);
+        localStorage.setItem('kulturdb_sidebar_collapsed', nextValue ? '1' : '0');
+    };
 
     // Raccourci clavier Ctrl+K
     useEffect(() => {
@@ -342,11 +354,31 @@ function LateralNav() {
                 </div>
             </nav>
 
-            <aside className="hidden md:block md:order-2 md:w-75 lg:w-80 md:sticky md:top-0 md:h-screen md:self-start bg-black border-l-2 border-black">
-                <div className="flex flex-col h-full overflow-y-auto no-scrollbar">
+            <aside className={`hidden md:block md:order-2 md:sticky md:top-0 md:h-screen md:self-start bg-black border-l-2 border-black transition-all duration-300 ${desktopCollapsed ? 'md:w-14 lg:w-14' : 'md:w-75 lg:w-80'}`}>
+                <div className="flex items-center justify-end px-2 py-2 border-b border-gray-800">
+                    <button
+                        onClick={toggleDesktopSidebar}
+                        aria-label={desktopCollapsed ? 'Ouvrir la sidebar' : 'Replier la sidebar'}
+                        className="px-2 py-1 text-xs font-display uppercase tracking-wider text-gray-400 border border-gray-700 hover:text-gray-200 hover:border-gray-500"
+                    >
+                        {desktopCollapsed ? '>>' : '<<'}
+                    </button>
+                </div>
+
+                <div className={`h-full overflow-y-auto no-scrollbar ${desktopCollapsed ? 'hidden' : 'flex flex-col'}`}>
                     {navContent}
                 </div>
             </aside>
+
+            {desktopCollapsed && (
+                <button
+                    onClick={toggleDesktopSidebar}
+                    aria-label="Ouvrir la sidebar"
+                    className="hidden md:block fixed right-3 top-1/2 -translate-y-1/2 z-40 px-3 py-2 bg-black border border-gray-700 text-gray-300 font-display uppercase tracking-wider text-xs"
+                >
+                    Menu
+                </button>
+            )}
         </>
     );
 }

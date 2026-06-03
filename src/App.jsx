@@ -22,6 +22,7 @@ import VerifyEmail from './pages/VerifyEmail';
 import OAuthSuccess from './pages/OAuthSuccess';
 import Library from './pages/Library';
 import Profile from './pages/Profile';
+import UserProfile from './pages/UserProfile';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function TopAuthActions() {
@@ -85,6 +86,7 @@ function App() {
                             <Route path="/watchlist" element={<Navigate to="/library" replace />} />
                             <Route path="/library" element={<Library />} />
                             <Route path="/profile" element={<Profile />} />
+                            <Route path="/profile/:userId" element={<UserProfile />} />
                             <Route path="/login" element={<Login />} />
                             <Route path="/register" element={<Register />} />
                             <Route path="/auth/verify-email" element={<VerifyEmail />} />

@@ -9,6 +9,7 @@ import {
     createFriendRequest,
     deleteFriendshipBetweenUsers,
     findFriendshipBetweenUsers,
+    findPublicUserById,
     findUserByEmail,
     findUserById,
     findPendingByEmail,
@@ -182,6 +183,27 @@ router.get('/users/search', requireAuth, (req, res) => {
 
     const users = searchUsers(query, req.user.id).map((row) => toFriendRelation(req.user.id, row));
     return res.json({ users });
+});
+
+router.get('/users/:userId', requireAuth, (req, res) => {
+    const userId = Number(req.params.userId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+        return res.status(400).json({ message: 'Utilisateur invalide.' });
+    }
+
+    const user = findPublicUserById(userId);
+    if (!user) {
+        return res.status(404).json({ message: 'Profil introuvable.' });
+    }
+
+    return res.json({
+        user: {
+            id: user.id,
+            displayName: user.display_name,
+            provider: user.provider,
+            createdAt: user.created_at,
+        },
+    });
 });
 
 router.get('/friends', requireAuth, (req, res) => {

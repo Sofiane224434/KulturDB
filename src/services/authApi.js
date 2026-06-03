@@ -63,6 +63,8 @@ export const authApi = {
 
     searchUsers: (query) => request(`/auth/users/search?query=${encodeURIComponent(query || '')}`),
 
+    getUserProfile: (userId) => request(`/auth/users/${encodeURIComponent(userId)}`),
+
     sendFriendRequest: (userId) =>
         request('/auth/friends/requests', {
             method: 'POST',

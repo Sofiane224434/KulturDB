@@ -8,6 +8,16 @@ export function findUserById(id) {
     return db.prepare('SELECT * FROM users WHERE id = ?').get(id);
 }
 
+export function findPublicUserById(id) {
+    return db
+        .prepare(
+            `SELECT id, display_name, provider, created_at
+             FROM users
+             WHERE id = ? AND email_verified = 1`,
+        )
+        .get(id);
+}
+
 export function findUserByOauth(provider, oauthId) {
     return db
         .prepare('SELECT * FROM users WHERE provider = ? AND oauth_id = ?')
