@@ -35,7 +35,11 @@ function Register() {
         setLoading(true);
 
         try {
-            const res = await authApi.register({ displayName, email, password });
+            const res = await authApi.register({
+                displayName: displayName.trim(),
+                email: email.trim().toLowerCase(),
+                password,
+            });
             setMessage(res.message || 'Compte créé. Vérifie ton email.');
             setPassword('');
         } catch (err) {
@@ -53,7 +57,7 @@ function Register() {
             return;
         }
         try {
-            const res = await authApi.resendVerification(email);
+            const res = await authApi.resendVerification(email.trim().toLowerCase());
             setMessage(res.message);
         } catch (err) {
             setError(err.message);

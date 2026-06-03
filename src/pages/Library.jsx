@@ -22,6 +22,31 @@ const TYPE_LABELS = {
   roman: 'Roman',
 };
 
+const getSeasonPosition = (progressCurrent, seasonBreakdown = []) => {
+  if (!Number.isFinite(progressCurrent) || progressCurrent <= 0 || !Array.isArray(seasonBreakdown) || seasonBreakdown.length === 0) {
+    return null;
+  }
+
+  let remaining = progressCurrent;
+  for (const season of seasonBreakdown) {
+    const count = Number(season.episodeCount || 0);
+    if (!Number.isFinite(count) || count <= 0) {
+      continue;
+    }
+
+    if (remaining <= count) {
+      return {
+        seasonNumber: season.seasonNumber,
+        episodeInSeason: remaining,
+      };
+    }
+
+    remaining -= count;
+  }
+
+  return null;
+};
+
 function Library() {
   const { getLibrary, removeFromLibrary, updateLibraryItem } = useLibrary();
   const { getTopPicks, removeFromTopPicks } = useTopPicks();
@@ -31,8 +56,58 @@ function Library() {
   const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => {
-    setItems(getLibrary());
+    const initialLibrary = getLibrary();
+    setItems(initialLibrary);
     setTopPicks(getTopPicks());
+
+    const entriesToHydrate = initialLibrary.filter((entry) =>
+      (entry.type === 'series' || entry.type === 'anime') &&
+      (!Number.isFinite(entry.progressTotal) || entry.progressTotal <= 0 || !Array.isArray(entry.seasonBreakdown) || entry.seasonBreakdown.length === 0),
+    );
+
+    if (entriesToHydrate.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const hydrateSeriesMetadata = async () => {
+      for (const entry of entriesToHydrate) {
+        try {
+          const details = await tmdbService.getSeriesDetails(entry.id);
+          const patch = {};
+
+          if (Number.isFinite(details?.number_of_episodes) && details.number_of_episodes > 0) {
+            patch.progressTotal = details.number_of_episodes;
+          }
+
+          if (Array.isArray(details?.seasons)) {
+            patch.seasonBreakdown = details.seasons
+              .filter((season) => season.season_number > 0 && Number.isFinite(season.episode_count) && season.episode_count > 0)
+              .map((season) => ({
+                seasonNumber: season.season_number,
+                episodeCount: season.episode_count,
+              }));
+          }
+
+          if (Object.keys(patch).length > 0) {
+            updateLibraryItem(entry.id, entry.type, patch);
+          }
+        } catch (error) {
+          // Ignore silently; library still works with partial metadata.
+        }
+      }
+
+      if (!cancelled) {
+        setItems(getLibrary());
+      }
+    };
+
+    hydrateSeriesMetadata();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filteredItems = useMemo(() => {
@@ -55,13 +130,17 @@ function Library() {
 
   const handleProgressChange = (item, progressCurrent) => {
     const safeValue = Number.isFinite(progressCurrent) ? Math.max(0, progressCurrent) : 0;
+    const maxProgress = Number.isFinite(item.progressTotal) && item.progressTotal > 0 ? item.progressTotal : null;
+    const clampedValue = maxProgress ? Math.min(safeValue, maxProgress) : safeValue;
     const nextPatch = { progressCurrent: safeValue };
 
     // Saisir une progression fait passer automatiquement l'item en cours,
     // sauf si l'utilisateur l'a deja marque comme termine.
-    if (safeValue > 0 && item.status !== 'done') {
+    if (clampedValue > 0 && item.status !== 'done') {
       nextPatch.status = 'in_progress';
     }
+
+    nextPatch.progressCurrent = clampedValue;
 
     const updated = updateLibraryItem(item.id, item.type, nextPatch);
     setItems(updated);
@@ -232,22 +311,47 @@ function Library() {
                       </button>
                     </div>
 
-                    <div className="mt-3 flex items-center gap-2">
-                      <label className="font-serif text-xs text-gray-600">Progression</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.progressCurrent || 0}
-                        onChange={(event) => handleProgressChange(item, Number(event.target.value))}
-                        className="w-20 px-2 py-1 border border-gray-400 text-xs font-serif"
-                      />
-                      <span className="font-serif text-xs text-gray-500">
-                        / {item.progressTotal || '?'} {item.progressUnit || 'element'}
-                      </span>
-                      <span className="ml-auto text-[11px] font-display uppercase tracking-wider text-gray-500">
-                        {STATUS_LABELS[item.status] || item.status}
-                      </span>
-                    </div>
+                    {item.type === 'movie' ? (
+                      <div className="mt-3 flex items-center gap-2">
+                        <span className="font-serif text-xs text-gray-500">Film: pas de progression chiffrée</span>
+                        <span className="ml-auto text-[11px] font-display uppercase tracking-wider text-gray-500">
+                          {STATUS_LABELS[item.status] || item.status}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="mt-3">
+                        <div className="flex items-center gap-2">
+                          <label className="font-serif text-xs text-gray-600">Progression</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max={Number.isFinite(item.progressTotal) && item.progressTotal > 0 ? item.progressTotal : undefined}
+                            value={item.progressCurrent || 0}
+                            onChange={(event) => handleProgressChange(item, Number(event.target.value))}
+                            className="w-20 px-2 py-1 border border-gray-400 text-xs font-serif"
+                          />
+                          <span className="font-serif text-xs text-gray-500">
+                            / {item.progressTotal || '?'} {item.progressUnit || 'element'}
+                          </span>
+                          <span className="ml-auto text-[11px] font-display uppercase tracking-wider text-gray-500">
+                            {STATUS_LABELS[item.status] || item.status}
+                          </span>
+                        </div>
+
+                        {(item.type === 'series' || item.type === 'anime') && item.progressCurrent > 0 && (
+                          <p className="mt-2 text-xs font-serif text-gray-600">
+                            {(() => {
+                              const seasonPosition = getSeasonPosition(item.progressCurrent, item.seasonBreakdown);
+                              if (!seasonPosition) {
+                                return 'Saison: information indisponible';
+                              }
+
+                              return `Saison ${seasonPosition.seasonNumber}, Episode ${seasonPosition.episodeInSeason}`;
+                            })()}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </article>

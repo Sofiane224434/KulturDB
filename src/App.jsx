@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Link, Navigate, Routes, Route, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Link, Navigate, Routes, Route, useLocation } from 'react-router-dom';
 import LateralNav from './components/LateralNav';
 import Footer from './components/Footer';
 import { useAuth } from './context/AuthContext';
@@ -24,23 +25,10 @@ import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function TopAuthActions() {
-    const navigate = useNavigate();
-    const { isAuthenticated, logout } = useAuth();
+    const { isAuthenticated } = useAuth();
 
     if (isAuthenticated) {
-        return (
-            <div className="flex items-center justify-end gap-3 px-4 pt-4 pb-2 md:px-8">
-                <button
-                    onClick={() => {
-                        logout();
-                        navigate('/');
-                    }}
-                    className="px-3 py-2 bg-black text-gray-300 border border-gray-800 font-display uppercase tracking-wider text-xs md:text-sm"
-                >
-                    Déconnexion
-                </button>
-            </div>
-        );
+        return null;
     }
 
     return (
@@ -61,9 +49,20 @@ function TopAuthActions() {
     );
 }
 
+function ScrollToTop() {
+    const location = useLocation();
+
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [location.pathname, location.search]);
+
+    return null;
+}
+
 function App() {
     return (
         <Router>
+            <ScrollToTop />
             <div className="min-h-screen bg-[#f5f5f0] text-gray-900 font-serif">
                 <div className="flex flex-col md:flex-row md:items-start md:min-h-screen">
                     <main className="flex-1 min-w-0 order-2 md:order-1 overflow-x-clip">

@@ -50,7 +50,10 @@ function Login() {
         setMessage('');
         setLoading(true);
         try {
-            const payload = await authApi.login({ email, password });
+            const payload = await authApi.login({
+                email: email.trim().toLowerCase(),
+                password,
+            });
             loginFromPayload(payload);
             navigate(redirectTo);
         } catch (err) {

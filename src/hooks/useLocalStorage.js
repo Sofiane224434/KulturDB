@@ -287,6 +287,7 @@ export const useLibrary = () => {
       status: item.status || 'to_start',
       progressCurrent: Number.isFinite(item.progressCurrent) ? item.progressCurrent : 0,
       progressTotal: Number.isFinite(item.progressTotal) ? item.progressTotal : null,
+      seasonBreakdown: Array.isArray(item.seasonBreakdown) ? item.seasonBreakdown : [],
       progressUnit: item.progressUnit || 'element',
       notes: item.notes || '',
       source: item.source || null,

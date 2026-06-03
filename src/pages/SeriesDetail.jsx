@@ -109,6 +109,14 @@ function SeriesDetail() {
             {
                 progressUnit: 'episode',
                 progressTotal: Number.isFinite(series.number_of_episodes) ? series.number_of_episodes : null,
+                seasonBreakdown: Array.isArray(series.seasons)
+                    ? series.seasons
+                        .filter((season) => season.season_number > 0 && Number.isFinite(season.episode_count) && season.episode_count > 0)
+                        .map((season) => ({
+                            seasonNumber: season.season_number,
+                            episodeCount: season.episode_count,
+                        }))
+                    : [],
             },
         );
         setInLibrary(true);

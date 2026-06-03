@@ -21,6 +21,7 @@ function MediaCard({ item, type }) {
     const releaseYear = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
     const detailUrl = `/${type}/${item.id}`;
     const [inLibraryState, setInLibraryState] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
     
     // Récupérer les 2 premiers genres
     const genres = item.genre_ids?.slice(0, 2).map(id => GENRES[id]).filter(Boolean) || [];
@@ -29,29 +30,59 @@ function MediaCard({ item, type }) {
         setInLibraryState(isInLibrary(item.id, type));
     }, [item.id, isInLibrary, type]);
 
-    const handleQuickAdd = (event) => {
+    const handleQuickAdd = async (event) => {
         event.preventDefault();
         event.stopPropagation();
 
-        if (inLibraryState) {
+        if (inLibraryState || isAdding) {
             return;
         }
 
-        addToLibrary(
-            {
-                id: item.id,
-                title,
-                poster_path: item.poster_path,
-                year: releaseYear !== 'N/A' ? releaseYear : null,
-                source: 'TMDB',
-            },
-            type,
-            {
-                progressUnit: type === 'movie' ? 'film' : 'episode',
-                progressTotal: type === 'movie' ? 1 : null,
-            },
-        );
-        setInLibraryState(true);
+        setIsAdding(true);
+
+        let progressTotal = type === 'movie' ? 1 : null;
+        let seasonBreakdown = [];
+
+        if (type === 'series' || type === 'anime') {
+            try {
+                const details = await tmdbService.getSeriesDetails(item.id);
+                if (Number.isFinite(details?.number_of_episodes) && details.number_of_episodes > 0) {
+                    progressTotal = details.number_of_episodes;
+                }
+
+                if (Array.isArray(details?.seasons)) {
+                    seasonBreakdown = details.seasons
+                        .filter((season) => season.season_number > 0 && Number.isFinite(season.episode_count) && season.episode_count > 0)
+                        .map((season) => ({
+                            seasonNumber: season.season_number,
+                            episodeCount: season.episode_count,
+                        }));
+                }
+            } catch (error) {
+                // Fallback silencieux: on conserve un ajout minimal si le détail série échoue.
+            }
+        }
+
+        try {
+            addToLibrary(
+                {
+                    id: item.id,
+                    title,
+                    poster_path: item.poster_path,
+                    year: releaseYear !== 'N/A' ? releaseYear : null,
+                    source: 'TMDB',
+                },
+                type,
+                {
+                    progressUnit: type === 'movie' ? 'film' : 'episode',
+                    progressTotal,
+                    seasonBreakdown,
+                },
+            );
+            setInLibraryState(true);
+        } finally {
+            setIsAdding(false);
+        }
     };
     
     return (
@@ -100,6 +131,7 @@ function MediaCard({ item, type }) {
             <button
                 onClick={handleQuickAdd}
                 aria-label={inLibraryState ? 'Déjà dans la bibliothèque' : 'Ajouter à ma bibliothèque'}
+                disabled={isAdding}
                 className={`absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 border-2 font-display text-lg leading-none flex items-center justify-center transition-colors ${inLibraryState ? 'bg-gray-700 text-gray-200 border-gray-900' : 'bg-black text-gray-200 border-gray-800 hover:text-white'}`}
             >
                 {inLibraryState ? '✓' : '+'}

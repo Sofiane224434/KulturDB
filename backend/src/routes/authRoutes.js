@@ -42,21 +42,23 @@ function getSafeRedirectPath(value) {
 }
 
 router.post('/register', async (req, res) => {
-    const { email, password, displayName } = req.body || {};
+    const rawEmail = String(req.body?.email || '').trim().toLowerCase();
+    const rawPassword = String(req.body?.password || '');
+    const rawDisplayName = String(req.body?.displayName || '').trim();
 
-    if (!email || !password || !displayName) {
+    if (!rawEmail || !rawPassword || !rawDisplayName) {
         return res.status(400).json({ message: 'Nom, email et mot de passe requis.' });
     }
 
-    if (!isEmail(email)) {
+    if (!isEmail(rawEmail)) {
         return res.status(400).json({ message: 'Email invalide.' });
     }
 
-    if (password.length < 8) {
+    if (rawPassword.length < 8) {
         return res.status(400).json({ message: 'Le mot de passe doit faire au moins 8 caractères.' });
     }
 
-    const existing = findUserByEmail(email);
+    const existing = findUserByEmail(rawEmail);
     if (existing && existing.email_verified) {
         return res.status(409).json({ message: 'Un compte vérifié existe déjà avec cet email.' });
     }
@@ -67,10 +69,10 @@ router.post('/register', async (req, res) => {
     if (existing && !existing.email_verified) {
         storeVerificationToken({ userId: existing.id, token, expiresAt });
     } else {
-        const passwordHash = await bcrypt.hash(password, 10);
+        const passwordHash = await bcrypt.hash(rawPassword, 10);
         upsertPendingRegistration({
-            email,
-            displayName,
+            email: rawEmail,
+            displayName: rawDisplayName,
             passwordHash,
             token,
             expiresAt,
@@ -78,7 +80,7 @@ router.post('/register', async (req, res) => {
     }
 
     const verifyUrl = `${config.frontendBaseUrl}/auth/verify-email?token=${token}`;
-    await sendVerificationEmail({ toEmail: email.toLowerCase(), displayName, verifyUrl });
+    await sendVerificationEmail({ toEmail: rawEmail, displayName: rawDisplayName, verifyUrl });
 
     return res.status(201).json({
         message: 'Inscription en attente. Vérifie ton email pour finaliser la création du compte.',
@@ -86,18 +88,19 @@ router.post('/register', async (req, res) => {
 });
 
 router.post('/login', async (req, res) => {
-    const { email, password } = req.body || {};
+    const rawEmail = String(req.body?.email || '').trim().toLowerCase();
+    const rawPassword = String(req.body?.password || '');
 
-    if (!email || !password) {
+    if (!rawEmail || !rawPassword) {
         return res.status(400).json({ message: 'Email et mot de passe requis.' });
     }
 
-    const user = findUserByEmail(email);
+    const user = findUserByEmail(rawEmail);
     if (!user || !user.password_hash) {
         return res.status(401).json({ message: 'Identifiants invalides.' });
     }
 
-    const ok = await bcrypt.compare(password, user.password_hash);
+    const ok = await bcrypt.compare(rawPassword, user.password_hash);
     if (!ok) {
         return res.status(401).json({ message: 'Identifiants invalides.' });
     }
@@ -133,7 +136,7 @@ router.patch('/me/display-name', requireAuth, (req, res) => {
 });
 
 router.post('/resend-verification', async (req, res) => {
-    const { email } = req.body || {};
+    const email = String(req.body?.email || '').trim().toLowerCase();
     if (!email) {
         return res.status(400).json({ message: 'Email requis.' });
     }
