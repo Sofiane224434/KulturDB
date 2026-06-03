@@ -8,6 +8,7 @@ import { useTopPicks } from '../hooks/useLocalStorage';
 const STATUS_LABELS = {
   to_start: 'A commencer',
   in_progress: 'En cours',
+  to_resume: 'A reprendre',
   done: 'Termine',
 };
 
@@ -54,7 +55,15 @@ function Library() {
 
   const handleProgressChange = (item, progressCurrent) => {
     const safeValue = Number.isFinite(progressCurrent) ? Math.max(0, progressCurrent) : 0;
-    const updated = updateLibraryItem(item.id, item.type, { progressCurrent: safeValue });
+    const nextPatch = { progressCurrent: safeValue };
+
+    // Saisir une progression fait passer automatiquement l'item en cours,
+    // sauf si l'utilisateur l'a deja marque comme termine.
+    if (safeValue > 0 && item.status !== 'done') {
+      nextPatch.status = 'in_progress';
+    }
+
+    const updated = updateLibraryItem(item.id, item.type, nextPatch);
     setItems(updated);
   };
 
@@ -174,6 +183,7 @@ function Library() {
             <option value="all">Tous les statuts</option>
             <option value="to_start">A commencer</option>
             <option value="in_progress">En cours</option>
+            <option value="to_resume">A reprendre</option>
             <option value="done">Termine</option>
           </select>
         </section>
@@ -210,6 +220,7 @@ function Library() {
                       >
                         <option value="to_start">A commencer</option>
                         <option value="in_progress">En cours</option>
+                        <option value="to_resume">A reprendre</option>
                         <option value="done">Termine</option>
                       </select>
 

@@ -123,7 +123,7 @@ function Home() {
             <section className="mt-12 md:mt-20 mb-12 md:mb-20">
                 <div className="mb-6 md:mb-8 flex flex-wrap items-center justify-between gap-2">
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-display uppercase tracking-wider text-gray-600">
-                        <span className="text-4xl sm:text-5xl md:text-6xl text-gray-800">M</span>angas
+                        <span className="text-4xl sm:text-5xl md:text-6xl text-gray-800">M</span>angas Populaires
                     </h2>
                     <a href="/manga" className="font-display text-xs md:text-sm uppercase tracking-widest text-gray-500 hover:text-gray-800 transition-colors border-b-2 border-gray-400 hover:border-gray-800 pb-1">
                         Voir tout →
@@ -139,7 +139,7 @@ function Home() {
             <section className="mb-12 md:mb-20">
                 <div className="mb-6 md:mb-8 flex flex-wrap items-center justify-between gap-2">
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-display uppercase tracking-wider text-gray-600">
-                        <span className="text-4xl sm:text-5xl md:text-6xl text-gray-800">M</span>anwha
+                        <span className="text-4xl sm:text-5xl md:text-6xl text-gray-800">M</span>anwha Populaires
                     </h2>
                     <a href="/manwha" className="font-display text-xs md:text-sm uppercase tracking-widest text-gray-500 hover:text-gray-800 transition-colors border-b-2 border-gray-400 hover:border-gray-800 pb-1">
                         Voir tout →
@@ -155,7 +155,7 @@ function Home() {
             <section className="mb-12 md:mb-20">
                 <div className="mb-6 md:mb-8 flex flex-wrap items-center justify-between gap-2">
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-display uppercase tracking-wider text-gray-600">
-                        <span className="text-4xl sm:text-5xl md:text-6xl text-gray-800">L</span>ight Novels
+                        <span className="text-4xl sm:text-5xl md:text-6xl text-gray-800">L</span>ight Novels Populaires
                     </h2>
                     <a href="/light-novels" className="font-display text-xs md:text-sm uppercase tracking-widest text-gray-500 hover:text-gray-800 transition-colors border-b-2 border-gray-400 hover:border-gray-800 pb-1">
                         Voir tout →
@@ -171,7 +171,7 @@ function Home() {
             <section>
                 <div className="mb-6 md:mb-8 flex flex-wrap items-center justify-between gap-2">
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-display uppercase tracking-wider text-gray-600">
-                        <span className="text-4xl sm:text-5xl md:text-6xl text-gray-800">R</span>omans
+                        <span className="text-4xl sm:text-5xl md:text-6xl text-gray-800">R</span>omans Populaires
                     </h2>
                     <a href="/romans" className="font-display text-xs md:text-sm uppercase tracking-widest text-gray-500 hover:text-gray-800 transition-colors border-b-2 border-gray-400 hover:border-gray-800 pb-1">
                         Voir tout →
