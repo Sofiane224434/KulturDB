@@ -126,7 +126,10 @@ function MediaCatalogPage({ title, initialLetter, mediaType, loadPage }) {
       setError('');
 
       try {
-        const data = await loadPage(page);
+        const data = await loadPage(page, sort);
+        if (data?.success === false) {
+          throw new Error(data?.status_message || 'TMDB sort indisponible');
+        }
         if (!cancelled) {
           setItems(Array.isArray(data.results) ? data.results : []);
           setTotalPages(Math.max(1, Math.min(data.total_pages || 1, 500)));
@@ -149,7 +152,7 @@ function MediaCatalogPage({ title, initialLetter, mediaType, loadPage }) {
     return () => {
       cancelled = true;
     };
-  }, [loadPage, page]);
+  }, [loadPage, page, sort]);
 
   useEffect(() => {
     const normalizedFilter = normalizePersonName(creditFilter);
@@ -208,7 +211,11 @@ function MediaCatalogPage({ title, initialLetter, mediaType, loadPage }) {
     }));
 
     const filteredItems = enrichedItems.filter((item) => itemMatchesCredit(item, creditFilter, creditRole));
-    return sortItems(filteredItems, mediaType, sort);
+    if (creditFilter) {
+      return sortItems(filteredItems, mediaType, sort);
+    }
+
+    return filteredItems;
   }, [creditFilter, creditRole, creditsMap, items, mediaType, sort]);
 
   return (
@@ -244,7 +251,7 @@ function MediaCatalogPage({ title, initialLetter, mediaType, loadPage }) {
 
           <select
             value={sort}
-            onChange={(event) => updateSearchParams({ sort: event.target.value })}
+            onChange={(event) => updateSearchParams({ sort: event.target.value, page: 1 })}
             className="px-4 py-2.5 border-2 border-gray-400 bg-white font-serif text-base text-gray-700"
           >
             {Object.entries(SORT_OPTIONS).map(([value, label]) => (

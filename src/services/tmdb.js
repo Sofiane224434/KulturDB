@@ -2,10 +2,32 @@ const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 const BASE_URL = import.meta.env.VITE_TMDB_BASE_URL;
 const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
 
+const MOVIE_SORT_MAP = {
+  popularity: 'popularity.desc',
+  rating_desc: 'vote_average.desc',
+  rating_asc: 'vote_average.asc',
+  alpha_asc: 'title.asc',
+  alpha_desc: 'title.desc',
+};
+
+const TV_SORT_MAP = {
+  popularity: 'popularity.desc',
+  rating_desc: 'vote_average.desc',
+  rating_asc: 'vote_average.asc',
+  alpha_asc: 'name.asc',
+  alpha_desc: 'name.desc',
+};
+
+function resolveSortBy(sortKey, mediaType = 'tv') {
+  const map = mediaType === 'movie' ? MOVIE_SORT_MAP : TV_SORT_MAP;
+  return map[sortKey] || map.popularity;
+}
+
 export const tmdbService = {
   // Films
-  getPopularMovies: async (page = 1) => {
-    const response = await fetch(`${BASE_URL}/movie/popular?api_key=${API_KEY}&language=fr-FR&page=${page}`);
+  getPopularMovies: async (page = 1, sortKey = 'popularity') => {
+    const sortBy = resolveSortBy(sortKey, 'movie');
+    const response = await fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&language=fr-FR&include_adult=false&sort_by=${sortBy}&page=${page}`);
     return response.json();
   },
 
@@ -25,8 +47,9 @@ export const tmdbService = {
   },
 
   // Séries
-  getPopularSeries: async (page = 1) => {
-    const response = await fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&without_genres=16&sort_by=popularity.desc&page=${page}`);
+  getPopularSeries: async (page = 1, sortKey = 'popularity') => {
+    const sortBy = resolveSortBy(sortKey, 'tv');
+    const response = await fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&without_genres=16&sort_by=${sortBy}&page=${page}`);
     return response.json();
   },
 
@@ -70,9 +93,10 @@ export const tmdbService = {
   },
 
   // Anime (films et séries d'animation japonaise)
-  getAnime: async (page = 1) => {
+  getAnime: async (page = 1, sortKey = 'popularity') => {
     // Genre 16 = Animation, pays JP = Japon
-    const response = await fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&with_genres=16&with_origin_country=JP&sort_by=popularity.desc&page=${page}`);
+    const sortBy = resolveSortBy(sortKey, 'tv');
+    const response = await fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&with_genres=16&with_origin_country=JP&sort_by=${sortBy}&page=${page}`);
     return response.json();
   },
 

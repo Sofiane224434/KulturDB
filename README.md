@@ -63,6 +63,7 @@ Variables OAuth GitHub:
 - Bibliotheque: rafraichissement periodique des metadonnees TMDB (episodes, saisons, durees) pour garder les compteurs plus a jour
 - Bibliotheque: recherche par titre + filtres type/statut
 - Catalogues films/series/anime: pagination avec sauts de 5 pages, acces direct par URL via `?page=...`, tri (note, alphabetique), et filtre par acteur/realisateur/equipe sur la page courante
+- Catalogues films/series/anime: tri global aligne sur les pages TMDB (pas uniquement local a la page chargee) pour popularite/note/ordre alphabetique
 - Les anime sont exclus de la page /series et de la source series utilisee sur l accueil/recherche series
 - Tops personnels visibles dans /library (top films, top series, top anime, top manga, etc.), avec gestion locale via le stockage navigateur
 - Alias legacy conserve: /watchlist redirige vers /library
