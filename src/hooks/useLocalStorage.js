@@ -1,5 +1,13 @@
 import { tmdbService } from '../services/tmdb';
 
+function isTmdbAnimeDetails(details) {
+  const genreIds = Array.isArray(details?.genres) ? details.genres.map((genre) => genre.id) : [];
+  const originCountries = Array.isArray(details?.origin_country) ? details.origin_country : [];
+  const originalLanguage = String(details?.original_language || '').toLowerCase();
+
+  return genreIds.includes(16) && (originCountries.includes('JP') || originalLanguage === 'ja');
+}
+
 // Hook pour gérer les tops (films, series, anime, manga, etc.)
 export const useTopPicks = () => {
   const TOP_PICKS_KEY = 'kulturdb_top_picks';
@@ -43,6 +51,71 @@ export const useTopPicks = () => {
     return topPicks;
   };
 
+  const replaceTopPick = (id, currentType, patch = {}) => {
+    const normalizedId = String(id);
+    const topPicks = getTopPicks();
+    const updated = topPicks.map((entry) => {
+      if (entry.id !== normalizedId || entry.type !== currentType) {
+        return entry;
+      }
+
+      return normalizeTopItem({
+        ...entry,
+        ...patch,
+      });
+    });
+
+    return saveTopPicks(updated);
+  };
+
+  const moveTopPick = (id, type, direction) => {
+    const normalizedId = String(id);
+    const topPicks = getTopPicks();
+    const matchingIndexes = topPicks
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry }) => entry.type === type);
+
+    const currentGroupIndex = matchingIndexes.findIndex(({ entry }) => entry.id === normalizedId);
+    if (currentGroupIndex === -1) {
+      return topPicks;
+    }
+
+    const targetGroupIndex = direction === 'up' ? currentGroupIndex - 1 : currentGroupIndex + 1;
+    if (targetGroupIndex < 0 || targetGroupIndex >= matchingIndexes.length) {
+      return topPicks;
+    }
+
+    const fromIndex = matchingIndexes[currentGroupIndex].index;
+    const toIndex = matchingIndexes[targetGroupIndex].index;
+    const updated = [...topPicks];
+    const [movedItem] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, movedItem);
+    return saveTopPicks(updated);
+  };
+
+  const refreshTopPickTypes = async () => {
+    let topPicks = getTopPicks();
+    let hasChanges = false;
+
+    for (const item of topPicks) {
+      if (item.type !== 'series') {
+        continue;
+      }
+
+      try {
+        const details = await tmdbService.getSeriesDetails(item.id);
+        if (isTmdbAnimeDetails(details)) {
+          topPicks = replaceTopPick(item.id, 'series', { type: 'anime' });
+          hasChanges = true;
+        }
+      } catch (_error) {
+        // Ignore partial failures to keep tops accessible.
+      }
+    }
+
+    return hasChanges ? getTopPicks() : topPicks;
+  };
+
   const addToTopPicks = (item, type) => {
     const topPicks = getTopPicks();
     const normalizedId = String(item.id);
@@ -73,7 +146,7 @@ export const useTopPicks = () => {
     return topPicks.some((entry) => (type ? entry.id === normalizedId && entry.type === type : entry.id === normalizedId));
   };
 
-  return { getTopPicks, addToTopPicks, removeFromTopPicks, isInTopPicks };
+  return { getTopPicks, addToTopPicks, removeFromTopPicks, isInTopPicks, moveTopPick, refreshTopPickTypes };
 };
 
 // Alias legacy pour compatibilite du code existant
@@ -422,6 +495,7 @@ export const useLibrary = () => {
 
     const details = await tmdbService.getSeriesDetails(item.id);
     return {
+      type: isTmdbAnimeDetails(details) ? 'anime' : 'series',
       progressTotal: Number.isFinite(details?.number_of_episodes) && details.number_of_episodes > 0 ? details.number_of_episodes : null,
       seasonBreakdown: Array.isArray(details?.seasons)
         ? details.seasons
@@ -439,9 +513,28 @@ export const useLibrary = () => {
     };
   };
 
+  const replaceLibraryItem = (id, currentType, patch = {}) => {
+    const normalizedId = String(id);
+    const library = getLibrary();
+    const updated = library.map((entry) => {
+      if (entry.id !== normalizedId || entry.type !== currentType) {
+        return entry;
+      }
+
+      return normalizeLibraryItem({
+        ...entry,
+        ...patch,
+        detailPath: buildDetailPath(normalizedId, patch.type || entry.type),
+        updatedAt: Date.now(),
+      });
+    });
+
+    return saveLibrary(updated);
+  };
+
   const refreshLibraryMetadata = async ({ force = false } = {}) => {
     let library = getLibrary();
-    const itemsToRefresh = library.filter((item) => needsMetadataRefresh(item, force));
+    const itemsToRefresh = library.filter((item) => needsMetadataRefresh(item, force) || item.type === 'series');
 
     if (itemsToRefresh.length === 0) {
       return library;
@@ -450,7 +543,7 @@ export const useLibrary = () => {
     for (const item of itemsToRefresh) {
       try {
         const patch = await fetchMetadataPatch(item);
-        library = updateLibraryItem(item.id, item.type, patch);
+        library = replaceLibraryItem(item.id, item.type, patch);
       } catch (_error) {
         // Ignore TMDB refresh failures to keep the library usable offline/partial.
       }

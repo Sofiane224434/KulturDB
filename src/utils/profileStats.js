@@ -50,16 +50,23 @@ export function computeProfileStats(libraryItems = [], topPicks = []) {
 
 export function formatMinutes(minutes) {
   const safeMinutes = Math.max(0, Math.round(toSafeNumber(minutes)));
-  const hours = Math.floor(safeMinutes / 60);
-  const remainingMinutes = safeMinutes % 60;
+  const totalHours = Math.floor(safeMinutes / 60);
+  const months = Math.floor(totalHours / (24 * 30));
+  const days = Math.floor((totalHours % (24 * 30)) / 24);
+  const hours = totalHours % 24;
+  const parts = [];
 
-  if (!hours) {
-    return `${remainingMinutes} min`;
+  if (months > 0) {
+    parts.push(`${months} mois`);
   }
 
-  if (!remainingMinutes) {
-    return `${hours} h`;
+  if (days > 0) {
+    parts.push(`${days} jour${days > 1 ? 's' : ''}`);
   }
 
-  return `${hours} h ${remainingMinutes} min`;
+  if (hours > 0 || parts.length === 0) {
+    parts.push(`${hours} h`);
+  }
+
+  return parts.join(' ');
 }

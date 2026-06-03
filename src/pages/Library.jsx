@@ -49,7 +49,7 @@ const getSeasonPosition = (progressCurrent, seasonBreakdown = []) => {
 
 function Library() {
   const { getLibrary, removeFromLibrary, updateLibraryItem, refreshLibraryMetadata } = useLibrary();
-  const { getTopPicks, removeFromTopPicks } = useTopPicks();
+  const { getTopPicks, removeFromTopPicks, moveTopPick, refreshTopPickTypes } = useTopPicks();
   const [items, setItems] = useState([]);
   const [topPicks, setTopPicks] = useState([]);
   const [filterType, setFilterType] = useState('all');
@@ -63,9 +63,10 @@ function Library() {
 
     let cancelled = false;
 
-    refreshLibraryMetadata().then((updatedItems) => {
+    Promise.all([refreshLibraryMetadata(), refreshTopPickTypes()]).then(([updatedItems, updatedTopPicks]) => {
       if (!cancelled) {
         setItems(updatedItems);
+        setTopPicks(updatedTopPicks);
       }
     });
 
@@ -121,6 +122,11 @@ function Library() {
 
   const handleTopPickRemove = (id, type) => {
     const updated = removeFromTopPicks(id, type);
+    setTopPicks(updated);
+  };
+
+  const handleTopPickMove = (id, type, direction) => {
+    const updated = moveTopPick(id, type, direction);
     setTopPicks(updated);
   };
 
@@ -194,6 +200,20 @@ function Library() {
                         >
                           Retirer
                         </button>
+                        <div className="absolute bottom-2 right-2 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleTopPickMove(item.id, item.type, 'up')}
+                            className="bg-black text-white px-2 py-1 text-xs font-display uppercase border border-white"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() => handleTopPickMove(item.id, item.type, 'down')}
+                            className="bg-black text-white px-2 py-1 text-xs font-display uppercase border border-white"
+                          >
+                            ↓
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -21,7 +21,7 @@ function Profile() {
   const { isAuthenticated, user, logout, setUser } = useAuth();
   const { preferences, updatePreferences } = useUiPreferences();
   const { getLibrary, refreshLibraryMetadata } = useLibrary();
-  const { getTopPicks } = useTopPicks();
+  const { getTopPicks, refreshTopPickTypes } = useTopPicks();
   const [displayName, setDisplayName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -53,10 +53,10 @@ function Profile() {
     }
 
     setLoadingStats(true);
-    refreshLibraryMetadata()
-      .then((updatedLibrary) => {
+    Promise.all([refreshLibraryMetadata(), refreshTopPickTypes()])
+      .then(([updatedLibrary, updatedTopPicks]) => {
         if (!cancelled) {
-          setStats(computeProfileStats(updatedLibrary, topPicks));
+          setStats(computeProfileStats(updatedLibrary, updatedTopPicks));
         }
       })
       .finally(() => {
