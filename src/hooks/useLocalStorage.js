@@ -57,6 +57,8 @@ function scoreJikanCandidate(titleNormalized, expectedYear, candidate) {
 
   if (candidate?.type === 'TV') {
     score += 1;
+  } else if (candidate?.type === 'Movie' || candidate?.type === 'TV Special' || candidate?.type === 'Special') {
+    score -= 4;
   }
 
   return score;
@@ -90,11 +92,36 @@ function scoreGenericCandidate({ titleNormalized, expectedYear, candidateTitle, 
     }
   }
 
-  if (prefersTv && String(candidateType || '').toUpperCase().includes('TV')) {
+  const normalizedType = String(candidateType || '').toUpperCase();
+  if (prefersTv && normalizedType.includes('TV')) {
     score += 1;
+  } else if (prefersTv && (normalizedType.includes('MOVIE') || normalizedType.includes('SPECIAL'))) {
+    score -= 4;
   }
 
   return score;
+}
+
+function getManualAnimeEpisodeOverride(title) {
+  const normalizedTitle = normalizeForMatch(title);
+
+  if (normalizedTitle.includes('inazuma eleven go chrono stone') || normalizedTitle.includes('inazuma eleven go chrono stones')) {
+    return {
+      type: 'anime',
+      progressTotal: 51,
+      reason: 'manual_inazuma_chrono_stone',
+    };
+  }
+
+  if (normalizedTitle.includes('inazuma eleven go galaxy')) {
+    return {
+      type: 'anime',
+      progressTotal: 43,
+      reason: 'manual_inazuma_galaxy',
+    };
+  }
+
+  return null;
 }
 
 async function fetchJikanAnimeSignal({ title, year }) {
@@ -372,6 +399,8 @@ export async function resolveSeriesAnimeMetadata({
     details: resolvedDetails,
   });
 
+  const manualOverride = getManualAnimeEpisodeOverride(title || resolvedDetails?.name || resolvedDetails?.original_name);
+
   const mergedEpisodeTotal = Math.max(
     tmdbEpisodes || 0,
     seasonEpisodes || 0,
@@ -381,8 +410,8 @@ export async function resolveSeriesAnimeMetadata({
   ) || null;
 
   return {
-    type: preferredType === 'anime' || crossSignal.isAnime ? 'anime' : 'series',
-    progressTotal: mergedEpisodeTotal,
+    type: manualOverride?.type || (preferredType === 'anime' || crossSignal.isAnime ? 'anime' : 'series'),
+    progressTotal: manualOverride?.progressTotal || mergedEpisodeTotal,
     seasonBreakdown,
     episodeRuntimeMinutes: Array.isArray(resolvedDetails?.episode_run_time)
       ? resolvedDetails.episode_run_time.find((value) => Number.isFinite(value) && value > 0) || null
