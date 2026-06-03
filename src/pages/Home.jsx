@@ -115,7 +115,7 @@ function Home() {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
                     {anime.map((item) => (
-                        <MediaCard key={item.id} item={item} type="series" />
+                        <MediaCard key={item.id} item={item} type="anime" />
                     ))}
                 </div>
             </section>

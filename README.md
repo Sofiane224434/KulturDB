@@ -51,6 +51,7 @@ Variables OAuth GitHub:
 
 - Inscription en attente (le compte est cree seulement apres verification email)
 - Verification email via Brevo (lien de confirmation)
+- Si Brevo est mal configure (ex: BREVO_SENDER_EMAIL manquant), l API retourne une erreur explicite au lieu d afficher un faux succes
 - Connexion locale (JWT)
 - OAuth Google (si variables Google configurees)
 - OAuth GitHub (si variables GitHub configurees)
@@ -59,6 +60,7 @@ Variables OAuth GitHub:
 - Barre de recherche: filtres disponibles pour films, series, anime, manga, manwha, light novel et roman
 - Bibliotheque publique active: /library (suivi visionnage/lecture sans login)
 - Bibliotheque: statuts (a commencer, en cours, a reprendre, termine), progression bornee au total existant, mapping saison/episode pour series/anime, et pas de progression chiffree pour les films
+- Bibliotheque: recherche par titre + filtres type/statut
 - Tops personnels visibles dans /library (top films, top series, top anime, top manga, etc.), avec gestion locale via le stockage navigateur
 - Alias legacy conserve: /watchlist redirige vers /library
 - Profil: pseudo modifiable depuis /profile (compte connecte)
@@ -69,6 +71,7 @@ Base lecture via API:
 - Sources API: Jikan/MyAnimeList (manga, manwha, light novel) et Open Library (roman)
 - Proxy backend /api/reading pour MangaDex supplement (chapitres scans, traductions, staff, score) et traduction FR (evite les blocages CORS navigateur)
 - Navigation par categorie + pagination publique (sans connexion)
+- Pagination simplifiee avec navigation numerique (pages 1, 2, 3, ...)
 - Fonction de bibliotheque perso activee (stockage local navigateur)
 - Pages detail lecture internes (mode fiche): synopsis/resume en francais, note source, genres, traductions completes, chapitres + chapitres scans, equipe et similaires
 - Fiches auteurs/dessinateurs (Jikan) accessibles depuis les pages detail

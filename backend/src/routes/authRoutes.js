@@ -23,13 +23,22 @@ import {
     getVerificationExpiryDate,
     signAuthToken,
 } from '../services/tokenService.js';
-import { sendVerificationEmail } from '../services/emailService.js';
+import { emailServiceStatus, sendVerificationEmail } from '../services/emailService.js';
 
 const router = express.Router();
 
 const isEmail = (value) => /.+@.+\..+/.test(value);
 const hasGoogleOAuth = Boolean(config.googleClientId && config.googleClientSecret);
 const hasGithubOAuth = Boolean(config.githubClientId && config.githubClientSecret);
+
+function getEmailSendErrorMessage(error) {
+    if (error?.code === 'EMAIL_NOT_CONFIGURED') {
+        const missing = (error?.missingConfig || emailServiceStatus.missingConfig || []).join(', ');
+        return `Service email indisponible. Configuration manquante: ${missing}.`;
+    }
+
+    return 'Impossible d envoyer l email de verification pour le moment. Reessaie plus tard.';
+}
 
 function getSafeRedirectPath(value) {
     if (typeof value !== 'string' || !value.startsWith('/')) {
@@ -80,7 +89,12 @@ router.post('/register', async (req, res) => {
     }
 
     const verifyUrl = `${config.frontendBaseUrl}/auth/verify-email?token=${token}`;
-    await sendVerificationEmail({ toEmail: rawEmail, displayName: rawDisplayName, verifyUrl });
+    try {
+        await sendVerificationEmail({ toEmail: rawEmail, displayName: rawDisplayName, verifyUrl });
+    } catch (error) {
+        console.error('Register verification email failed:', error);
+        return res.status(503).json({ message: getEmailSendErrorMessage(error) });
+    }
 
     return res.status(201).json({
         message: 'Inscription en attente. Vérifie ton email pour finaliser la création du compte.',
@@ -168,11 +182,16 @@ router.post('/resend-verification', async (req, res) => {
     }
 
     const verifyUrl = `${config.frontendBaseUrl}/auth/verify-email?token=${token}`;
-    await sendVerificationEmail({
-        toEmail: (pending?.email || user.email).toLowerCase(),
-        displayName: pending?.display_name || user.display_name,
-        verifyUrl,
-    });
+    try {
+        await sendVerificationEmail({
+            toEmail: (pending?.email || user.email).toLowerCase(),
+            displayName: pending?.display_name || user.display_name,
+            verifyUrl,
+        });
+    } catch (error) {
+        console.error('Resend verification email failed:', error);
+        return res.status(503).json({ message: getEmailSendErrorMessage(error) });
+    }
 
     return res.json({ message: 'Email de vérification renvoyé.' });
 });

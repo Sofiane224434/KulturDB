@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import MediaCard from '../components/MediaCard';
+import Pagination from '../components/Pagination';
 import { tmdbService } from '../services/tmdb';
 
 function Movies() {
@@ -52,25 +53,7 @@ function Movies() {
                 ))}
             </div>
 
-            <div className="flex flex-wrap justify-center items-center gap-3 md:gap-4">
-                <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="px-4 md:px-6 py-2 md:py-3 text-sm md:text-base font-display uppercase tracking-wider bg-black text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-2 border-gray-800"
-                >
-                    ← Précédent
-                </button>
-                <span className="font-display text-sm md:text-base text-gray-600">
-                    Page {page} / {totalPages}
-                </span>
-                <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="px-4 md:px-6 py-2 md:py-3 text-sm md:text-base font-display uppercase tracking-wider bg-black text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-2 border-gray-800"
-                >
-                    Suivant →
-                </button>
-            </div>
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
             
             <div className="vintage-frame-bottom"></div>

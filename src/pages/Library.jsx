@@ -54,6 +54,7 @@ function Library() {
   const [topPicks, setTopPicks] = useState([]);
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const initialLibrary = getLibrary();
@@ -111,12 +112,16 @@ function Library() {
   }, []);
 
   const filteredItems = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
     return items.filter((item) => {
       const typeOk = filterType === 'all' ? true : item.type === filterType;
       const statusOk = filterStatus === 'all' ? true : item.status === filterStatus;
-      return typeOk && statusOk;
+      const title = String(item.title || '').toLowerCase();
+      const queryOk = normalizedQuery ? title.includes(normalizedQuery) : true;
+      return typeOk && statusOk && queryOk;
     });
-  }, [items, filterStatus, filterType]);
+  }, [items, filterStatus, filterType, searchQuery]);
 
   const handleRemove = (item) => {
     const updated = removeFromLibrary(item.id, item.type);
@@ -239,10 +244,18 @@ function Library() {
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-display uppercase tracking-wider text-gray-600 mb-3">
             Ma Bibliotheque
           </h1>
-          <p className="font-serif text-gray-600">{items.length} element(s) suivis</p>
+          <p className="font-serif text-gray-600">{filteredItems.length} / {items.length} element(s) affiches</p>
         </header>
 
-        <section className="mb-6 grid md:grid-cols-2 gap-3">
+        <section className="mb-6 grid md:grid-cols-3 gap-3">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Rechercher un titre dans votre bibliotheque..."
+            className="px-3 py-2 border-2 border-gray-400 bg-white font-serif text-sm text-gray-700"
+          />
+
           <select
             value={filterType}
             onChange={(event) => setFilterType(event.target.value)}
@@ -267,7 +280,13 @@ function Library() {
           </select>
         </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {filteredItems.length === 0 ? (
+          <div className="border-2 border-gray-300 bg-white p-8 text-center">
+            <p className="font-display uppercase tracking-wider text-gray-700">Aucun resultat dans la bibliotheque</p>
+            <p className="font-serif text-sm text-gray-500 mt-2">Essayez un autre mot-cle ou ajustez les filtres.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredItems.map((item) => {
             const posterUrl = item.poster_path ? tmdbService.getImageUrl(item.poster_path, 'w342') : item.image;
             const detailPath = item.detailPath || '#';
@@ -357,7 +376,8 @@ function Library() {
               </article>
             );
           })}
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="vintage-frame-bottom"></div>
