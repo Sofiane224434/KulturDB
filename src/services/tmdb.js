@@ -1,3 +1,5 @@
+import { authApi } from './authApi';
+
 const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 const BASE_URL = import.meta.env.VITE_TMDB_BASE_URL;
 const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
@@ -30,6 +32,11 @@ const ANIME_DISCOVER_VARIANTS = [
   'with_genres=16&with_origin_country=KR',
   'with_genres=16&with_origin_country=CN',
 ];
+const OVERRIDE_CACHE_TTL_MS = 60_000;
+
+let cachedCatalogOverrides = null;
+let cachedCatalogOverridesAt = 0;
+const overrideByRefCache = new Map();
 
 function normalizeTitleValue(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
@@ -99,6 +106,180 @@ function resolveSortBy(sortKey, mediaType = 'tv') {
   return map[sortKey] || map.popularity;
 }
 
+function toTmdbId(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+  return Math.trunc(numeric);
+}
+
+function toSeasonCountMap(seasonBreakdown) {
+  if (!Array.isArray(seasonBreakdown)) {
+    return new Map();
+  }
+
+  const map = new Map();
+  seasonBreakdown.forEach((entry) => {
+    const seasonNumber = Number(entry?.seasonNumber);
+    const episodeCount = Number(entry?.episodeCount);
+    if (Number.isFinite(seasonNumber) && seasonNumber > 0 && Number.isFinite(episodeCount) && episodeCount > 0) {
+      map.set(Math.trunc(seasonNumber), Math.trunc(episodeCount));
+    }
+  });
+
+  return map;
+}
+
+function applyEntryOverrides(item, entry, mediaType) {
+  if (!item || !entry) {
+    return item;
+  }
+
+  const next = {
+    ...item,
+    media_type: mediaType === 'series' ? 'tv' : (mediaType === 'anime' ? 'tv' : mediaType),
+  };
+
+  if (entry.title) {
+    if (mediaType === 'movie') {
+      next.title = entry.title;
+      next.original_title = entry.title;
+    } else {
+      next.name = entry.title;
+      next.original_name = entry.title;
+    }
+  }
+
+  if (entry.overview) {
+    next.overview = entry.overview;
+  }
+
+  if (entry.posterPath) {
+    next.poster_path = entry.posterPath;
+  }
+
+  if (entry.backdropPath) {
+    next.backdrop_path = entry.backdropPath;
+  }
+
+  if (Number.isFinite(entry.episodesTotal) && entry.episodesTotal > 0) {
+    next.number_of_episodes = entry.episodesTotal;
+  }
+
+  const seasonMap = toSeasonCountMap(entry.seasonBreakdown);
+  if (Array.isArray(next.seasons) && seasonMap.size > 0) {
+    next.seasons = next.seasons.map((season) => {
+      const seasonNumber = Number(season?.season_number);
+      if (Number.isFinite(seasonNumber) && seasonMap.has(Math.trunc(seasonNumber))) {
+        return {
+          ...season,
+          episode_count: seasonMap.get(Math.trunc(seasonNumber)),
+        };
+      }
+      return season;
+    });
+  }
+
+  return next;
+}
+
+async function getCatalogOverrides() {
+  const now = Date.now();
+  if (cachedCatalogOverrides && now - cachedCatalogOverridesAt < OVERRIDE_CACHE_TTL_MS) {
+    return cachedCatalogOverrides;
+  }
+
+  try {
+    const data = await authApi.getMediaCatalogOverrides();
+    cachedCatalogOverrides = {
+      hiddenRefs: Array.isArray(data?.hiddenRefs) ? data.hiddenRefs : [],
+      forcedEntries: Array.isArray(data?.forcedEntries) ? data.forcedEntries : [],
+    };
+  } catch (_error) {
+    cachedCatalogOverrides = { hiddenRefs: [], forcedEntries: [] };
+  }
+
+  cachedCatalogOverridesAt = now;
+  return cachedCatalogOverrides;
+}
+
+async function getMediaOverride(mediaType, mediaRefId) {
+  const cacheKey = `${mediaType}:${mediaRefId}`;
+  const now = Date.now();
+  const existing = overrideByRefCache.get(cacheKey);
+  if (existing && now - existing.fetchedAt < OVERRIDE_CACHE_TTL_MS) {
+    return existing.value;
+  }
+
+  let value = null;
+  try {
+    const data = await authApi.getMediaOverride(mediaType, mediaRefId);
+    value = data?.override || null;
+  } catch (_error) {
+    value = null;
+  }
+
+  overrideByRefCache.set(cacheKey, { value, fetchedAt: now });
+  return value;
+}
+
+function applyCatalogOverrides(items, mediaType, forcedEntries) {
+  const safeItems = Array.isArray(items) ? items : [];
+  const hiddenSet = new Set();
+  const forcedById = new Map();
+
+  (forcedEntries || []).forEach((entry) => {
+    if (entry?.mediaType !== mediaType) {
+      return;
+    }
+    const tmdbId = toTmdbId(entry.mediaRefId);
+    if (!Number.isFinite(tmdbId)) {
+      return;
+    }
+    forcedById.set(tmdbId, entry);
+  });
+
+  (cachedCatalogOverrides?.hiddenRefs || []).forEach((ref) => {
+    if (ref?.mediaType !== mediaType) {
+      return;
+    }
+    const tmdbId = toTmdbId(ref.mediaRefId);
+    if (Number.isFinite(tmdbId)) {
+      hiddenSet.add(tmdbId);
+    }
+  });
+
+  const next = [];
+  const seen = new Set();
+
+  safeItems.forEach((item) => {
+    const itemId = toTmdbId(item?.id);
+    if (!Number.isFinite(itemId) || hiddenSet.has(itemId)) {
+      return;
+    }
+    const forced = forcedById.get(itemId);
+    next.push(applyEntryOverrides(item, forced, mediaType));
+    seen.add(itemId);
+  });
+
+  forcedById.forEach((entry, entryId) => {
+    if (seen.has(entryId) || hiddenSet.has(entryId)) {
+      return;
+    }
+    next.unshift(applyEntryOverrides({
+      id: entryId,
+      name: entry.title || `Fiche ${entryId}`,
+      title: entry.title || `Fiche ${entryId}`,
+      overview: entry.overview || '',
+      poster_path: entry.posterPath || null,
+      backdrop_path: entry.backdropPath || null,
+    }, entry, mediaType));
+  });
+
+  return next;
+}
+
 function isLikelyAnimeItem(item) {
   const originCountries = Array.isArray(item?.origin_country)
     ? item.origin_country.map((country) => String(country || '').toUpperCase())
@@ -128,7 +309,12 @@ export const tmdbService = {
   getPopularMovies: async (page = 1, sortKey = 'popularity') => {
     const sortBy = resolveSortBy(sortKey, 'movie');
     const response = await fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&language=fr-FR&include_adult=false&sort_by=${sortBy}&page=${page}`);
-    return response.json();
+    const data = await response.json();
+    const overrides = await getCatalogOverrides();
+    return {
+      ...data,
+      results: applyCatalogOverrides(data?.results, 'movie', overrides.forcedEntries),
+    };
   },
 
   getTrendingMovies: async (timeWindow = 'week') => {
@@ -138,7 +324,9 @@ export const tmdbService = {
 
   getMovieDetails: async (movieId) => {
     const response = await fetch(`${BASE_URL}/movie/${movieId}?api_key=${API_KEY}&language=fr-FR&append_to_response=credits,similar,reviews,translations`);
-    return response.json();
+    const data = await response.json();
+    const override = await getMediaOverride('movie', movieId);
+    return applyEntryOverrides(data, override, 'movie');
   },
 
   searchMovies: async (query, page = 1) => {
@@ -150,7 +338,12 @@ export const tmdbService = {
   getPopularSeries: async (page = 1, sortKey = 'popularity') => {
     const sortBy = resolveSortBy(sortKey, 'tv');
     const response = await fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&without_genres=16&sort_by=${sortBy}&page=${page}`);
-    return response.json();
+    const data = await response.json();
+    const overrides = await getCatalogOverrides();
+    return {
+      ...data,
+      results: applyCatalogOverrides(data?.results, 'series', overrides.forcedEntries),
+    };
   },
 
   getTrendingSeries: async (timeWindow = 'week') => {
@@ -160,7 +353,9 @@ export const tmdbService = {
 
   getSeriesDetails: async (seriesId) => {
     const response = await fetch(`${BASE_URL}/tv/${seriesId}?api_key=${API_KEY}&language=fr-FR&append_to_response=credits,similar,reviews,translations`);
-    return response.json();
+    const data = await response.json();
+    const override = await getMediaOverride('series', seriesId) || await getMediaOverride('anime', seriesId);
+    return applyEntryOverrides(data, override, 'series');
   },
 
   // Détails d'une saison
@@ -178,11 +373,14 @@ export const tmdbService = {
   searchSeries: async (query, page = 1) => {
     const response = await fetch(`${BASE_URL}/search/tv?api_key=${API_KEY}&language=fr-FR&query=${encodeURIComponent(query)}&page=${page}`);
     const data = await response.json();
+    const overrides = await getCatalogOverrides();
+    const filtered = Array.isArray(data?.results)
+      ? data.results.filter((item) => !Array.isArray(item.genre_ids) || !item.genre_ids.includes(16))
+      : [];
+
     return {
       ...data,
-      results: Array.isArray(data?.results)
-        ? data.results.filter((item) => !Array.isArray(item.genre_ids) || !item.genre_ids.includes(16))
-        : [],
+      results: applyCatalogOverrides(filtered, 'series', overrides.forcedEntries),
     };
   },
 
@@ -233,10 +431,13 @@ export const tmdbService = {
       return Math.max(maxResults, currentResults);
     }, 0);
 
+    const overrides = await getCatalogOverrides();
+    const withOverrides = applyCatalogOverrides(mergedResults, 'anime', overrides.forcedEntries);
+
     return {
       ...referenceData,
       page,
-      results: mergedResults,
+      results: withOverrides,
       total_pages: totalPages,
       total_results: totalResults,
     };

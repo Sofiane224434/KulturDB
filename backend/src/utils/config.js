@@ -30,4 +30,7 @@ export const config = {
         process.env.GITHUB_CALLBACK_URL ||
         `${process.env.AUTH_BASE_URL || 'http://localhost:4000'}/api/auth/oauth/github/callback`,
     sessionSecret: process.env.AUTH_SESSION_SECRET || process.env.AUTH_JWT_SECRET,
+    adminEmail: process.env.ADMIN_EMAIL || 'admin@kulturdb.local',
+    adminPassword: process.env.ADMIN_PASSWORD || 'Admin123!',
+    adminDisplayName: process.env.ADMIN_DISPLAY_NAME || 'Admin KulturDB',
 };

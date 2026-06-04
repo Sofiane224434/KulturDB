@@ -73,6 +73,30 @@ export const authApi = {
 
     getUserProfile: (userId) => request(`/auth/users/${encodeURIComponent(userId)}`),
 
+    getMediaCatalogOverrides: () => request('/auth/media-catalog'),
+
+    getMediaOverride: (mediaType, mediaRefId) =>
+        request(`/auth/media-overrides/${encodeURIComponent(mediaType)}/${encodeURIComponent(mediaRefId)}`),
+
+    listAdminMediaEntries: () => request('/auth/admin/media-entries'),
+
+    createAdminMediaEntry: (payload) =>
+        request('/auth/admin/media-entries', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }),
+
+    updateAdminMediaEntry: (entryId, payload) =>
+        request(`/auth/admin/media-entries/${entryId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload),
+        }),
+
+    deleteAdminMediaEntry: (entryId) =>
+        request(`/auth/admin/media-entries/${entryId}`, {
+            method: 'DELETE',
+        }),
+
     sendFriendRequest: (userId) =>
         request('/auth/friends/requests', {
             method: 'POST',

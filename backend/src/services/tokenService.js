@@ -20,6 +20,7 @@ export function signAuthToken(user) {
             displayName: user.display_name,
             emailVerified: !!user.email_verified,
             provider: user.provider,
+            role: user.role || 'user',
         },
         config.jwtSecret,
         { expiresIn: config.jwtExpiresIn },

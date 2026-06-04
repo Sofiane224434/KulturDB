@@ -2,8 +2,10 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { tmdbService } from '../services/tmdb';
 import { readingApi } from '../services/readingApi';
+import { useAuth } from '../context/AuthContext';
 
 function LateralNav() {
+    const { isAdmin } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
@@ -58,7 +60,8 @@ function LateralNav() {
         { name: 'Mangas', path: '/manga' },
         { name: 'Manwha', path: '/manwha' },
         { name: 'Light Novels', path: '/light-novels' },
-        { name: 'Romans', path: '/romans' }
+        { name: 'Romans', path: '/romans' },
+        ...(isAdmin ? [{ name: 'Admin fiches', path: '/admin/media' }] : []),
     ];
 
     // Charger l'historique

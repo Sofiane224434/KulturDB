@@ -23,6 +23,7 @@ import OAuthSuccess from './pages/OAuthSuccess';
 import Library from './pages/Library';
 import Profile from './pages/Profile';
 import UserProfile from './pages/UserProfile';
+import AdminMediaManager from './pages/AdminMediaManager';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function TopAuthActions() {
@@ -87,6 +88,14 @@ function App() {
                             <Route path="/library" element={<Library />} />
                             <Route path="/profile" element={<Profile />} />
                             <Route path="/profile/:userId" element={<UserProfile />} />
+                            <Route
+                                path="/admin/media"
+                                element={(
+                                    <ProtectedRoute requireAdmin>
+                                        <AdminMediaManager />
+                                    </ProtectedRoute>
+                                )}
+                            />
                             <Route path="/login" element={<Login />} />
                             <Route path="/register" element={<Register />} />
                             <Route path="/auth/verify-email" element={<VerifyEmail />} />

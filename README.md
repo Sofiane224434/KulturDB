@@ -29,6 +29,12 @@ Variables backend auth:
 - AUTH_JWT_EXPIRES_IN
 - AUTH_SESSION_SECRET
 
+Variables bootstrap admin:
+
+- ADMIN_EMAIL
+- ADMIN_PASSWORD
+- ADMIN_DISPLAY_NAME
+
 Variables verification email Brevo:
 
 - BREVO_API_KEY
@@ -90,6 +96,9 @@ Variables OAuth GitHub:
 - Fiche detail serie/anime: affichage episodes/saisons aligne sur la resolution multi-sources pour limiter les faux `1 episode`
 - Titres medias: affichage nettoye pour eviter les caracteres japonais/coreens dans les titres visibles (fallback latin)
 - Catalogue anime: source elargie et fusionnee (TMDB origin country JP/KR/CN + original language ja/ko/zh, dedoublonnage et tolerance aux reponses partielles) avec filtrage strict pays/langue pour exclure les animations occidentales du listing anime
+- Administration: compte admin bootstrap via variables d environnement (role `admin`) avec acces a une page de gestion `/admin/media`
+- Administration des fiches: ajout/modification/suppression d overrides TMDB (titre, synopsis, affiche, saisons, episodes) + possibilite de masquer une fiche des catalogues publics
+- Catalogues/detail films/series/anime: application automatique des overrides admin (masquage et corrections metadata)
 - Ajout/Detail series: resolution anime/episodes renforcee des l ajout (TMDB + Jikan + somme des saisons) pour limiter les cas classes en serie avec un total d episodes faux
 - Tops: ordre manuel possible a l interieur de chaque categorie (monter / descendre)
 - Lisibilite texte amelioree: taille de base augmentee et champs catalogue plus grands
@@ -110,6 +119,7 @@ Routes frontend ajoutees:
 - /login
 - /register
 - /profile
+- /admin/media
 - /auth/verify-email?token=...
 - /auth/oauth-success?token=...
 
@@ -120,6 +130,8 @@ Routes API auth:
 - GET /api/auth/me
 - GET /api/auth/sync-data
 - PUT /api/auth/sync-data
+- GET /api/auth/media-catalog
+- GET /api/auth/media-overrides/:mediaType/:mediaRefId
 - PATCH /api/auth/me/display-name
 - GET /api/auth/users/search?query=...
 - GET /api/auth/users/:userId
@@ -127,6 +139,10 @@ Routes API auth:
 - POST /api/auth/friends/requests
 - POST /api/auth/friends/requests/:requestId/accept
 - DELETE /api/auth/friends/:userId
+- GET /api/auth/admin/media-entries
+- POST /api/auth/admin/media-entries
+- PATCH /api/auth/admin/media-entries/:entryId
+- DELETE /api/auth/admin/media-entries/:entryId
 - POST /api/auth/resend-verification
 - POST /api/auth/verify-email
 - GET /api/auth/oauth/providers

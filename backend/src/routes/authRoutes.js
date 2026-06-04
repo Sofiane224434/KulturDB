@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import passport from 'passport';
 import { config } from '../utils/config.js';
-import { requireAuth } from '../utils/authMiddleware.js';
+import { requireAdmin, requireAuth } from '../utils/authMiddleware.js';
 import {
     acceptFriendRequest,
     createLocalUser,
@@ -25,6 +25,13 @@ import {
     upsertPendingRegistration,
     getValidVerificationToken,
     markVerificationTokenUsed,
+    getPublicMediaCatalog,
+    getPublicMediaOverride,
+    getAdminMediaEntryById,
+    listAdminMediaEntries,
+    createAdminMediaEntry,
+    updateAdminMediaEntry,
+    deleteAdminMediaEntry,
     updateUserVerification,
     updateUserDisplayName,
     upsertUserSyncData,
@@ -41,6 +48,91 @@ const router = express.Router();
 const isEmail = (value) => /.+@.+\..+/.test(value);
 const hasGoogleOAuth = Boolean(config.googleClientId && config.googleClientSecret);
 const hasGithubOAuth = Boolean(config.githubClientId && config.githubClientSecret);
+const allowedMediaTypes = new Set(['movie', 'series', 'anime']);
+
+function normalizeMediaType(value) {
+    const mediaType = String(value || '').trim().toLowerCase();
+    return allowedMediaTypes.has(mediaType) ? mediaType : null;
+}
+
+function normalizeSeasonBreakdown(value) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value
+        .map((entry) => ({
+            seasonNumber: Number(entry?.seasonNumber),
+            episodeCount: Number(entry?.episodeCount),
+        }))
+        .filter((entry) => Number.isFinite(entry.seasonNumber) && entry.seasonNumber > 0 && Number.isFinite(entry.episodeCount) && entry.episodeCount > 0);
+}
+
+function parseAdminMediaPayload(body = {}, { partial = false } = {}) {
+    const payload = {};
+
+    if (Object.prototype.hasOwnProperty.call(body, 'mediaType')) {
+        const mediaType = normalizeMediaType(body.mediaType);
+        if (!mediaType) {
+            return { error: 'Type invalide. Utilise movie, series ou anime.' };
+        }
+        payload.mediaType = mediaType;
+    }
+
+    if (!partial && !payload.mediaType) {
+        return { error: 'Le type de fiche est obligatoire.' };
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'mediaRefId')) {
+        const mediaRefId = String(body.mediaRefId || '').trim();
+        if (!mediaRefId) {
+            return { error: 'L identifiant de fiche (mediaRefId) est obligatoire.' };
+        }
+        payload.mediaRefId = mediaRefId;
+    }
+
+    if (!partial && !payload.mediaRefId) {
+        return { error: 'L identifiant de fiche (mediaRefId) est obligatoire.' };
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'title')) {
+        payload.title = body.title == null ? null : String(body.title).trim();
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'overview')) {
+        payload.overview = body.overview == null ? null : String(body.overview).trim();
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'posterPath')) {
+        payload.posterPath = body.posterPath == null ? null : String(body.posterPath).trim();
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'backdropPath')) {
+        payload.backdropPath = body.backdropPath == null ? null : String(body.backdropPath).trim();
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'releaseYear')) {
+        const releaseYear = Number(body.releaseYear);
+        payload.releaseYear = Number.isFinite(releaseYear) ? releaseYear : null;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'episodesTotal')) {
+        const episodesTotal = Number(body.episodesTotal);
+        payload.episodesTotal = Number.isFinite(episodesTotal) && episodesTotal > 0
+            ? Math.floor(episodesTotal)
+            : null;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'seasonBreakdown')) {
+        payload.seasonBreakdown = normalizeSeasonBreakdown(body.seasonBreakdown);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'isHidden')) {
+        payload.isHidden = !!body.isHidden;
+    }
+
+    return { payload };
+}
 
 function getEmailSendErrorMessage(error) {
     if (error?.code === 'EMAIL_NOT_CONFIGURED') {
@@ -318,6 +410,101 @@ router.get('/me', requireAuth, (req, res) => {
 router.get('/sync-data', requireAuth, (req, res) => {
     const syncData = getUserSyncData(req.user.id);
     return res.json({ syncData });
+});
+
+router.get('/media-catalog', (req, res) => {
+    const catalog = getPublicMediaCatalog();
+    return res.json(catalog);
+});
+
+router.get('/media-overrides/:mediaType/:mediaRefId', (req, res) => {
+    const mediaType = normalizeMediaType(req.params.mediaType);
+    const mediaRefId = String(req.params.mediaRefId || '').trim();
+
+    if (!mediaType || !mediaRefId) {
+        return res.status(400).json({ message: 'Type ou identifiant de fiche invalide.' });
+    }
+
+    const override = getPublicMediaOverride(mediaType, mediaRefId);
+    return res.json({ override });
+});
+
+router.get('/admin/media-entries', requireAuth, requireAdmin, (_req, res) => {
+    return res.json({ entries: listAdminMediaEntries() });
+});
+
+router.post('/admin/media-entries', requireAuth, requireAdmin, (req, res) => {
+    const { payload, error } = parseAdminMediaPayload(req.body, { partial: false });
+    if (error) {
+        return res.status(400).json({ message: error });
+    }
+
+    try {
+        const entry = createAdminMediaEntry(
+            {
+                ...payload,
+                sourceType: 'tmdb',
+            },
+            req.user.id,
+        );
+
+        return res.status(201).json({ entry });
+    } catch (dbError) {
+        if (String(dbError?.message || '').toLowerCase().includes('unique')) {
+            return res.status(409).json({ message: 'Une fiche admin existe deja pour ce type et cet identifiant.' });
+        }
+        console.error('create admin media entry failed:', dbError);
+        return res.status(500).json({ message: 'Impossible de creer la fiche admin.' });
+    }
+});
+
+router.patch('/admin/media-entries/:entryId', requireAuth, requireAdmin, (req, res) => {
+    const entryId = Number(req.params.entryId);
+    if (!Number.isInteger(entryId) || entryId <= 0) {
+        return res.status(400).json({ message: 'Entree invalide.' });
+    }
+
+    const { payload, error } = parseAdminMediaPayload(req.body, { partial: true });
+    if (error) {
+        return res.status(400).json({ message: error });
+    }
+
+    if (Object.keys(payload).length === 0) {
+        return res.status(400).json({ message: 'Aucune modification fournie.' });
+    }
+
+    try {
+        const entry = updateAdminMediaEntry(entryId, payload);
+        if (!entry) {
+            return res.status(404).json({ message: 'Entree introuvable.' });
+        }
+        return res.json({ entry });
+    } catch (dbError) {
+        if (String(dbError?.message || '').toLowerCase().includes('unique')) {
+            return res.status(409).json({ message: 'Une fiche admin existe deja pour ce type et cet identifiant.' });
+        }
+        console.error('update admin media entry failed:', dbError);
+        return res.status(500).json({ message: 'Impossible de modifier la fiche admin.' });
+    }
+});
+
+router.delete('/admin/media-entries/:entryId', requireAuth, requireAdmin, (req, res) => {
+    const entryId = Number(req.params.entryId);
+    if (!Number.isInteger(entryId) || entryId <= 0) {
+        return res.status(400).json({ message: 'Entree invalide.' });
+    }
+
+    const existing = getAdminMediaEntryById(entryId);
+    if (!existing) {
+        return res.status(404).json({ message: 'Entree introuvable.' });
+    }
+
+    const deleted = deleteAdminMediaEntry(entryId);
+    if (!deleted) {
+        return res.status(500).json({ message: 'Suppression impossible.' });
+    }
+
+    return res.json({ message: 'Fiche admin supprimee.' });
 });
 
 router.put('/sync-data', requireAuth, (req, res) => {

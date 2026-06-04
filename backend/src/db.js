@@ -77,6 +77,31 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id);
   CREATE INDEX IF NOT EXISTS idx_friendships_status ON friendships(status);
   CREATE INDEX IF NOT EXISTS idx_user_sync_updated_at ON user_sync_data(updated_at);
+
+  CREATE TABLE IF NOT EXISTS admin_media_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_type TEXT NOT NULL DEFAULT 'tmdb',
+    media_type TEXT NOT NULL,
+    media_ref_id TEXT,
+    title TEXT,
+    overview TEXT,
+    poster_path TEXT,
+    backdrop_path TEXT,
+    release_year INTEGER,
+    seasons_json TEXT NOT NULL DEFAULT '[]',
+    episodes_total INTEGER,
+    is_hidden INTEGER NOT NULL DEFAULT 0,
+    created_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_admin_media_type ON admin_media_entries(media_type);
+  CREATE INDEX IF NOT EXISTS idx_admin_media_hidden ON admin_media_entries(is_hidden);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_media_tmdb_unique
+    ON admin_media_entries(source_type, media_type, media_ref_id)
+    WHERE source_type = 'tmdb' AND media_ref_id IS NOT NULL;
 `);
 
 const userSyncColumns = db
@@ -86,4 +111,13 @@ const userSyncColumns = db
 
 if (!userSyncColumns.includes('roadmap_json')) {
   db.exec("ALTER TABLE user_sync_data ADD COLUMN roadmap_json TEXT NOT NULL DEFAULT '[]'");
+}
+
+const userColumns = db
+  .prepare("PRAGMA table_info('users')")
+  .all()
+  .map((column) => column.name);
+
+if (!userColumns.includes('role')) {
+  db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
 }

@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { db } from '../db.js';
 
 function parseJsonSafe(value, fallback) {
@@ -7,13 +8,46 @@ function parseJsonSafe(value, fallback) {
 
     try {
         return JSON.parse(value);
-    } catch (_error) {
+    } catch {
         return fallback;
     }
 }
 
+function normalizeSeasonBreakdown(value) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value
+        .map((entry) => ({
+            seasonNumber: Number(entry?.seasonNumber),
+            episodeCount: Number(entry?.episodeCount),
+        }))
+        .filter((entry) => Number.isFinite(entry.seasonNumber) && entry.seasonNumber > 0 && Number.isFinite(entry.episodeCount) && entry.episodeCount > 0);
+}
+
+function toAdminMediaEntry(row) {
+    return {
+        id: row.id,
+        sourceType: row.source_type,
+        mediaType: row.media_type,
+        mediaRefId: row.media_ref_id,
+        title: row.title || null,
+        overview: row.overview || null,
+        posterPath: row.poster_path || null,
+        backdropPath: row.backdrop_path || null,
+        releaseYear: Number.isFinite(row.release_year) ? row.release_year : null,
+        seasonBreakdown: normalizeSeasonBreakdown(parseJsonSafe(row.seasons_json, [])),
+        episodesTotal: Number.isFinite(row.episodes_total) ? row.episodes_total : null,
+        isHidden: !!row.is_hidden,
+        createdBy: row.created_by,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+    };
+}
+
 export function findUserByEmail(email) {
-    return db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase());
+    return db.prepare('SELECT * FROM users WHERE email = ?').get(String(email || '').toLowerCase());
 }
 
 export function findUserById(id) {
@@ -23,7 +57,7 @@ export function findUserById(id) {
 export function findPublicUserById(id) {
     return db
         .prepare(
-            `SELECT id, display_name, provider, created_at
+            `SELECT id, display_name, provider, role, created_at
              FROM users
              WHERE id = ? AND email_verified = 1`,
         )
@@ -39,19 +73,19 @@ export function findUserByOauth(provider, oauthId) {
 export function createLocalUser({ email, displayName, passwordHash, emailVerified = false }) {
     const stmt = db.prepare(
         `INSERT INTO users (email, display_name, password_hash, provider, email_verified)
-     VALUES (?, ?, ?, 'local', ?)`,
+         VALUES (?, ?, ?, 'local', ?)`,
     );
-    const result = stmt.run(email.toLowerCase(), displayName, passwordHash, emailVerified ? 1 : 0);
+    const result = stmt.run(String(email || '').toLowerCase(), displayName, passwordHash, emailVerified ? 1 : 0);
     return findUserById(result.lastInsertRowid);
 }
 
 export function createOAuthUser({ email, displayName, provider, oauthId, emailVerified }) {
     const stmt = db.prepare(
         `INSERT INTO users (email, display_name, provider, oauth_id, email_verified)
-     VALUES (?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?)`,
     );
     const result = stmt.run(
-        email.toLowerCase(),
+        String(email || '').toLowerCase(),
         displayName,
         provider,
         oauthId,
@@ -61,7 +95,7 @@ export function createOAuthUser({ email, displayName, provider, oauthId, emailVe
 }
 
 export function updateUserVerification(userId, verified) {
-    db.prepare('UPDATE users SET email_verified = ?, updated_at = datetime(\'now\') WHERE id = ?').run(
+    db.prepare("UPDATE users SET email_verified = ?, updated_at = datetime('now') WHERE id = ?").run(
         verified ? 1 : 0,
         userId,
     );
@@ -80,7 +114,7 @@ export function updateUserDisplayName(userId, displayName) {
 export function storeVerificationToken({ userId, token, expiresAt }) {
     db.prepare(
         `INSERT INTO email_verification_tokens (user_id, token, expires_at)
-     VALUES (?, ?, ?)`,
+         VALUES (?, ?, ?)`,
     ).run(userId, token, expiresAt);
 }
 
@@ -88,16 +122,16 @@ export function getValidVerificationToken(token) {
     return db
         .prepare(
             `SELECT t.*, u.email, u.display_name
-       FROM email_verification_tokens t
-       JOIN users u ON u.id = t.user_id
-       WHERE t.token = ? AND t.used_at IS NULL AND datetime(t.expires_at) > datetime('now')`,
+             FROM email_verification_tokens t
+             JOIN users u ON u.id = t.user_id
+             WHERE t.token = ? AND t.used_at IS NULL AND datetime(t.expires_at) > datetime('now')`,
         )
         .get(token);
 }
 
 export function markVerificationTokenUsed(token) {
     db
-        .prepare('UPDATE email_verification_tokens SET used_at = datetime(\'now\') WHERE token = ?')
+        .prepare("UPDATE email_verification_tokens SET used_at = datetime('now') WHERE token = ?")
         .run(token);
 }
 
@@ -105,36 +139,37 @@ export function findPendingByEmail(email) {
     return db
         .prepare(
             `SELECT * FROM pending_registrations
-       WHERE email = ? AND used_at IS NULL AND datetime(expires_at) > datetime('now')`,
+             WHERE email = ? AND used_at IS NULL AND datetime(expires_at) > datetime('now')`,
         )
-        .get(email.toLowerCase());
+        .get(String(email || '').toLowerCase());
 }
 
 export function upsertPendingRegistration({ email, displayName, passwordHash, token, expiresAt }) {
+    const normalizedEmail = String(email || '').toLowerCase();
     const existing = db
         .prepare('SELECT id FROM pending_registrations WHERE email = ?')
-        .get(email.toLowerCase());
+        .get(normalizedEmail);
 
     if (existing) {
         db.prepare(
             `UPDATE pending_registrations
-       SET display_name = ?, password_hash = ?, token = ?, expires_at = ?, used_at = NULL, updated_at = datetime('now')
-       WHERE email = ?`,
-        ).run(displayName, passwordHash, token, expiresAt, email.toLowerCase());
+             SET display_name = ?, password_hash = ?, token = ?, expires_at = ?, used_at = NULL, updated_at = datetime('now')
+             WHERE email = ?`,
+        ).run(displayName, passwordHash, token, expiresAt, normalizedEmail);
         return;
     }
 
     db.prepare(
         `INSERT INTO pending_registrations (email, display_name, password_hash, token, expires_at)
-     VALUES (?, ?, ?, ?, ?)`,
-    ).run(email.toLowerCase(), displayName, passwordHash, token, expiresAt);
+         VALUES (?, ?, ?, ?, ?)`,
+    ).run(normalizedEmail, displayName, passwordHash, token, expiresAt);
 }
 
 export function getValidPendingRegistrationToken(token) {
     return db
         .prepare(
             `SELECT * FROM pending_registrations
-       WHERE token = ? AND used_at IS NULL AND datetime(expires_at) > datetime('now')`,
+             WHERE token = ? AND used_at IS NULL AND datetime(expires_at) > datetime('now')`,
         )
         .get(token);
 }
@@ -142,8 +177,8 @@ export function getValidPendingRegistrationToken(token) {
 export function markPendingRegistrationUsed(token) {
     db.prepare(
         `UPDATE pending_registrations
-     SET used_at = datetime('now'), updated_at = datetime('now')
-     WHERE token = ?`,
+         SET used_at = datetime('now'), updated_at = datetime('now')
+         WHERE token = ?`,
     ).run(token);
 }
 
@@ -154,8 +189,219 @@ export function publicUser(user) {
         displayName: user.display_name,
         emailVerified: !!user.email_verified,
         provider: user.provider,
+        role: user.role || 'user',
         createdAt: user.created_at,
     };
+}
+
+export function ensureConfiguredAdminUser({ email, password, displayName }) {
+    const safeEmail = String(email || '').trim().toLowerCase();
+    const safePassword = String(password || '').trim();
+    const safeDisplayName = String(displayName || '').trim() || 'Admin KulturDB';
+
+    if (!safeEmail || !safePassword) {
+        return null;
+    }
+
+    const existing = findUserByEmail(safeEmail);
+    const passwordHash = bcrypt.hashSync(safePassword, 10);
+
+    if (!existing) {
+        const result = db.prepare(
+            `INSERT INTO users (email, display_name, password_hash, provider, email_verified, role)
+             VALUES (?, ?, ?, 'local', 1, 'admin')`,
+        ).run(safeEmail, safeDisplayName, passwordHash);
+
+        return findUserById(result.lastInsertRowid);
+    }
+
+    db.prepare(
+        `UPDATE users
+         SET display_name = ?,
+             password_hash = ?,
+             email_verified = 1,
+             role = 'admin',
+             updated_at = datetime('now')
+         WHERE id = ?`,
+    ).run(safeDisplayName, passwordHash, existing.id);
+
+    return findUserById(existing.id);
+}
+
+export function listAdminMediaEntries() {
+    return db
+        .prepare(
+            `SELECT *
+             FROM admin_media_entries
+             ORDER BY datetime(updated_at) DESC`,
+        )
+        .all()
+        .map(toAdminMediaEntry);
+}
+
+export function getAdminMediaEntryById(entryId) {
+    const row = db
+        .prepare('SELECT * FROM admin_media_entries WHERE id = ?')
+        .get(entryId);
+
+    return row ? toAdminMediaEntry(row) : null;
+}
+
+export function createAdminMediaEntry(payload = {}, createdBy = null) {
+    const sourceType = String(payload.sourceType || 'tmdb').toLowerCase() === 'manual' ? 'manual' : 'tmdb';
+    const mediaType = String(payload.mediaType || 'series').trim().toLowerCase();
+    const mediaRefId = payload.mediaRefId != null ? String(payload.mediaRefId).trim() : null;
+    const seasonBreakdown = normalizeSeasonBreakdown(payload.seasonBreakdown);
+
+    const result = db
+        .prepare(
+            `INSERT INTO admin_media_entries (
+                source_type,
+                media_type,
+                media_ref_id,
+                title,
+                overview,
+                poster_path,
+                backdrop_path,
+                release_year,
+                seasons_json,
+                episodes_total,
+                is_hidden,
+                created_by,
+                updated_at
+             )
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+        )
+        .run(
+            sourceType,
+            mediaType,
+            mediaRefId || null,
+            payload.title || null,
+            payload.overview || null,
+            payload.posterPath || null,
+            payload.backdropPath || null,
+            Number.isFinite(payload.releaseYear) ? payload.releaseYear : null,
+            JSON.stringify(seasonBreakdown),
+            Number.isFinite(payload.episodesTotal) ? payload.episodesTotal : null,
+            payload.isHidden ? 1 : 0,
+            createdBy,
+        );
+
+    return getAdminMediaEntryById(result.lastInsertRowid);
+}
+
+export function updateAdminMediaEntry(entryId, patch = {}) {
+    const current = getAdminMediaEntryById(entryId);
+    if (!current) {
+        return null;
+    }
+
+    const next = {
+        sourceType: patch.sourceType === 'manual' || patch.sourceType === 'tmdb' ? patch.sourceType : current.sourceType,
+        mediaType: patch.mediaType ? String(patch.mediaType).trim().toLowerCase() : current.mediaType,
+        mediaRefId: Object.prototype.hasOwnProperty.call(patch, 'mediaRefId')
+            ? (patch.mediaRefId != null ? String(patch.mediaRefId).trim() : null)
+            : current.mediaRefId,
+        title: Object.prototype.hasOwnProperty.call(patch, 'title') ? (patch.title || null) : current.title,
+        overview: Object.prototype.hasOwnProperty.call(patch, 'overview') ? (patch.overview || null) : current.overview,
+        posterPath: Object.prototype.hasOwnProperty.call(patch, 'posterPath') ? (patch.posterPath || null) : current.posterPath,
+        backdropPath: Object.prototype.hasOwnProperty.call(patch, 'backdropPath') ? (patch.backdropPath || null) : current.backdropPath,
+        releaseYear: Object.prototype.hasOwnProperty.call(patch, 'releaseYear')
+            ? (Number.isFinite(patch.releaseYear) ? patch.releaseYear : null)
+            : current.releaseYear,
+        seasonBreakdown: Array.isArray(patch.seasonBreakdown)
+            ? normalizeSeasonBreakdown(patch.seasonBreakdown)
+            : current.seasonBreakdown,
+        episodesTotal: Object.prototype.hasOwnProperty.call(patch, 'episodesTotal')
+            ? (Number.isFinite(patch.episodesTotal) ? patch.episodesTotal : null)
+            : current.episodesTotal,
+        isHidden: Object.prototype.hasOwnProperty.call(patch, 'isHidden')
+            ? (patch.isHidden ? 1 : 0)
+            : (current.isHidden ? 1 : 0),
+    };
+
+    db.prepare(
+        `UPDATE admin_media_entries
+         SET source_type = ?,
+             media_type = ?,
+             media_ref_id = ?,
+             title = ?,
+             overview = ?,
+             poster_path = ?,
+             backdrop_path = ?,
+             release_year = ?,
+             seasons_json = ?,
+             episodes_total = ?,
+             is_hidden = ?,
+             updated_at = datetime('now')
+         WHERE id = ?`,
+    ).run(
+        next.sourceType,
+        next.mediaType,
+        next.mediaRefId,
+        next.title,
+        next.overview,
+        next.posterPath,
+        next.backdropPath,
+        next.releaseYear,
+        JSON.stringify(next.seasonBreakdown),
+        next.episodesTotal,
+        next.isHidden,
+        entryId,
+    );
+
+    return getAdminMediaEntryById(entryId);
+}
+
+export function deleteAdminMediaEntry(entryId) {
+    const result = db
+        .prepare('DELETE FROM admin_media_entries WHERE id = ?')
+        .run(entryId);
+
+    return result.changes > 0;
+}
+
+export function getPublicMediaCatalog() {
+    const entries = listAdminMediaEntries();
+
+    const hiddenRefs = entries
+        .filter((entry) => entry.sourceType === 'tmdb' && entry.isHidden && entry.mediaRefId)
+        .map((entry) => ({
+            mediaType: entry.mediaType,
+            mediaRefId: entry.mediaRefId,
+        }));
+
+    const forcedEntries = entries
+        .filter((entry) => entry.sourceType === 'tmdb' && !entry.isHidden && entry.mediaRefId)
+        .map((entry) => ({
+            mediaType: entry.mediaType,
+            mediaRefId: entry.mediaRefId,
+            title: entry.title,
+            overview: entry.overview,
+            posterPath: entry.posterPath,
+            backdropPath: entry.backdropPath,
+            releaseYear: entry.releaseYear,
+            episodesTotal: entry.episodesTotal,
+            seasonBreakdown: entry.seasonBreakdown,
+        }));
+
+    return { hiddenRefs, forcedEntries };
+}
+
+export function getPublicMediaOverride(mediaType, mediaRefId) {
+    const row = db
+        .prepare(
+            `SELECT *
+             FROM admin_media_entries
+             WHERE source_type = 'tmdb'
+               AND lower(media_type) = lower(?)
+               AND media_ref_id = ?
+             ORDER BY datetime(updated_at) DESC
+             LIMIT 1`,
+        )
+        .get(String(mediaType || ''), String(mediaRefId || ''));
+
+    return row ? toAdminMediaEntry(row) : null;
 }
 
 export function searchUsers(query, currentUserId, limit = 20) {
@@ -180,7 +426,7 @@ export function searchUsers(query, currentUserId, limit = 20) {
              WHERE u.id <> @currentUserId
                AND u.email_verified = 1
                AND (
-                                        lower(u.display_name) LIKE @query
+                    lower(u.display_name) LIKE @query
                )
              ORDER BY lower(u.display_name) ASC
              LIMIT @limit`,

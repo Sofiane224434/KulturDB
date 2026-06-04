@@ -5,6 +5,7 @@ import passport from 'passport';
 import { config } from './utils/config.js';
 import './db.js';
 import { initPassport } from './utils/passport.js';
+import { ensureConfiguredAdminUser } from './services/userRepository.js';
 import authRoutes from './routes/authRoutes.js';
 import readingRoutes from './routes/readingRoutes.js';
 
@@ -30,6 +31,16 @@ app.use(
 
 initPassport();
 app.use(passport.initialize());
+
+const adminUser = ensureConfiguredAdminUser({
+    email: config.adminEmail,
+    password: config.adminPassword,
+    displayName: config.adminDisplayName,
+});
+
+if (adminUser) {
+    console.log(`Admin bootstrap actif pour ${adminUser.email}`);
+}
 
 app.get('/api/health', (_req, res) => {
     res.json({ ok: true, service: 'auth-api' });
