@@ -2,10 +2,14 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 async function request(path, options = {}) {
     const token = localStorage.getItem('authToken');
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const headers = {
-        'Content-Type': 'application/json',
         ...(options.headers || {}),
     };
+
+    if (!isFormData) {
+        headers['Content-Type'] = 'application/json';
+    }
 
     if (token) {
         headers.Authorization = `Bearer ${token}`;
@@ -51,6 +55,21 @@ export const authApi = {
         request('/auth/me/settings', {
             method: 'PATCH',
             body: JSON.stringify(payload),
+        }),
+
+    uploadProfileAvatar: (file) => {
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        return request('/auth/me/avatar', {
+            method: 'POST',
+            body: formData,
+        });
+    },
+
+    deleteProfileAvatar: () =>
+        request('/auth/me/avatar', {
+            method: 'DELETE',
         }),
 
     updateDisplayName: (displayName) =>

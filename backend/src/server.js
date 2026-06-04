@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import session from 'express-session';
 import cors from 'cors';
 import passport from 'passport';
@@ -8,6 +10,10 @@ import { initPassport } from './utils/passport.js';
 import { ensureConfiguredAdminUser } from './services/userRepository.js';
 import authRoutes from './routes/authRoutes.js';
 import readingRoutes from './routes/readingRoutes.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, '..', 'uploads');
 
 const app = express();
 
@@ -45,6 +51,8 @@ if (adminUser) {
 app.get('/api/health', (_req, res) => {
     res.json({ ok: true, service: 'auth-api' });
 });
+
+app.use('/uploads', express.static(uploadsDir));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/reading', readingRoutes);

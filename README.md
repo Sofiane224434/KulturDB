@@ -76,7 +76,7 @@ Variables OAuth GitHub:
 - Les anime sont exclus de la page /series et de la source series utilisee sur l accueil/recherche series
 - Tops personnels visibles dans /library (top films, top series, top anime, top manga, etc.), avec gestion locale via le stockage navigateur
 - Alias legacy conserve: /watchlist redirige vers /library
-- Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, photo de profil, mode prive/public et gestion des abonnements (compte connecte)
+- Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, photo de profil par upload, mode prive/public et gestion des abonnements (compte connecte)
 - Profil: page /profile recentree sur resume compte + statistiques, avec pages dediees /settings (pseudo + avatar + confidentialite), /friends (abonnes/abonnements) et /planning (roadmap)
 - Commentaires films/series: choix de visibilite `public` ou `prive` a la publication
 - Activite publique profil: seuls les commentaires `public` sont pris en compte dans les compteurs/details visibles par les autres
@@ -142,6 +142,8 @@ Routes API auth:
 - GET /api/auth/media-catalog
 - GET /api/auth/media-overrides/:mediaType/:mediaRefId
 - PATCH /api/auth/me/settings
+- POST /api/auth/me/avatar
+- DELETE /api/auth/me/avatar
 - GET /api/auth/users/search?query=...
 - GET /api/auth/users/:userId
 - GET /api/auth/subscriptions

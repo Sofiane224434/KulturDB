@@ -1,5 +1,9 @@
 import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
+import multer from 'multer';
 import passport from 'passport';
 import { config } from '../utils/config.js';
 import { requireAdmin, requireAuth } from '../utils/authMiddleware.js';
@@ -50,6 +54,36 @@ import {
 import { emailServiceStatus, sendVerificationEmail } from '../services/emailService.js';
 
 const router = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const avatarsDir = path.join(__dirname, '..', '..', 'uploads', 'avatars');
+
+fs.mkdirSync(avatarsDir, { recursive: true });
+
+const avatarStorage = multer.diskStorage({
+    destination: (_req, _file, cb) => {
+        cb(null, avatarsDir);
+    },
+    filename: (req, file, cb) => {
+        const extension = path.extname(file.originalname || '').toLowerCase() || '.jpg';
+        const safeExtension = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(extension) ? extension : '.jpg';
+        cb(null, `avatar-${req.user?.id || 'user'}-${Date.now()}${safeExtension}`);
+    },
+});
+
+const avatarUpload = multer({
+    storage: avatarStorage,
+    limits: {
+        fileSize: 5 * 1024 * 1024,
+    },
+    fileFilter: (_req, file, cb) => {
+        if (!String(file.mimetype || '').startsWith('image/')) {
+            cb(new Error('INVALID_FILE_TYPE'));
+            return;
+        }
+        cb(null, true);
+    },
+});
 
 const isEmail = (value) => /.+@.+\..+/.test(value);
 const hasGoogleOAuth = Boolean(config.googleClientId && config.googleClientSecret);
@@ -157,6 +191,35 @@ function getSafeRedirectPath(value) {
         return '/';
     }
     return value;
+}
+
+function getStoredAvatarPathFromUrl(value) {
+    const normalized = String(value || '').trim();
+    const marker = '/uploads/avatars/';
+    const markerIndex = normalized.indexOf(marker);
+    if (markerIndex === -1) {
+        return null;
+    }
+
+    const fileName = normalized.slice(markerIndex + marker.length).split('?')[0].split('#')[0];
+    if (!fileName) {
+        return null;
+    }
+
+    return path.join(avatarsDir, path.basename(fileName));
+}
+
+function removeAvatarFileIfManaged(avatarUrl) {
+    const storedPath = getStoredAvatarPathFromUrl(avatarUrl);
+    if (!storedPath || !fs.existsSync(storedPath)) {
+        return;
+    }
+
+    try {
+        fs.unlinkSync(storedPath);
+    } catch (_error) {
+        // Ne bloque pas la mise a jour profil si l'ancien fichier n'est plus accessible.
+    }
 }
 
 function toSubscriptionRelation(row) {
@@ -820,13 +883,61 @@ router.delete('/users/:userId/profile-comments/:commentId', requireAuth, (req, r
     return res.json({ message: 'Commentaire supprime.', comments: listProfileComments(userId) });
 });
 
+router.post('/me/avatar', requireAuth, (req, res) => {
+    avatarUpload.single('avatar')(req, res, (error) => {
+        if (error?.message === 'INVALID_FILE_TYPE') {
+            return res.status(400).json({ message: 'Le fichier doit etre une image valide.' });
+        }
+
+        if (error?.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ message: 'L image ne doit pas depasser 5 Mo.' });
+        }
+
+        if (error) {
+            console.error('avatar upload failed:', error);
+            return res.status(500).json({ message: 'Upload avatar impossible.' });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ message: 'Aucun fichier recu.' });
+        }
+
+        const currentUser = findUserById(req.user.id);
+        const avatarUrl = `${config.authBaseUrl}/uploads/avatars/${req.file.filename}`;
+        removeAvatarFileIfManaged(currentUser?.avatar_url || null);
+
+        const updatedUser = updateUserProfileSettings(req.user.id, {
+            avatarUrl,
+        });
+
+        return res.json({
+            message: 'Photo de profil mise a jour.',
+            user: publicUser(updatedUser),
+        });
+    });
+});
+
+router.delete('/me/avatar', requireAuth, (req, res) => {
+    const currentUser = findUserById(req.user.id);
+    if (!currentUser) {
+        return res.status(404).json({ message: 'Utilisateur introuvable.' });
+    }
+
+    removeAvatarFileIfManaged(currentUser.avatar_url || null);
+    const updatedUser = updateUserProfileSettings(req.user.id, { avatarUrl: null });
+
+    return res.json({
+        message: 'Photo de profil supprimee.',
+        user: publicUser(updatedUser),
+    });
+});
+
 router.patch('/me/settings', requireAuth, (req, res) => {
     const rawDisplayName = String(req.body?.displayName || '').trim();
     const hasDisplayName = Object.prototype.hasOwnProperty.call(req.body || {}, 'displayName');
-    const hasAvatarUrl = Object.prototype.hasOwnProperty.call(req.body || {}, 'avatarUrl');
     const hasIsPrivate = Object.prototype.hasOwnProperty.call(req.body || {}, 'isPrivate');
 
-    if (!hasDisplayName && !hasAvatarUrl && !hasIsPrivate) {
+    if (!hasDisplayName && !hasIsPrivate) {
         return res.status(400).json({ message: 'Aucune modification fournie.' });
     }
 
@@ -838,14 +949,8 @@ router.patch('/me/settings', requireAuth, (req, res) => {
         return res.status(400).json({ message: 'Le pseudo doit contenir entre 2 et 50 caracteres.' });
     }
 
-    const rawAvatar = String(req.body?.avatarUrl || '').trim();
-    if (hasAvatarUrl && rawAvatar.length > 500) {
-        return res.status(400).json({ message: 'URL d avatar trop longue.' });
-    }
-
     const updatedUser = updateUserProfileSettings(req.user.id, {
         ...(hasDisplayName ? { displayName: rawDisplayName } : {}),
-        ...(hasAvatarUrl ? { avatarUrl: rawAvatar || null } : {}),
         ...(hasIsPrivate ? { isPrivate: !!req.body?.isPrivate } : {}),
     });
 

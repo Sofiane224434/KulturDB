@@ -35,3 +35,4 @@ dist-ssr
 # Backend auth local data
 /backend/data/*.db
 /backend/data/*.db-*
+/backend/uploads/
