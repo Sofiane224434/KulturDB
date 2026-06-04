@@ -771,7 +771,7 @@ export const useWatchlist = () => {
   };
 };
 
-// Hook pour gerer la roadmap personnelle (chronologique et manuelle)
+// Hook pour gerer la file roadmap personnelle (ordre sequentiel)
 export const useRoadmap = () => {
   const ROADMAP_KEY = 'kulturdb_roadmap';
 
@@ -786,7 +786,6 @@ export const useRoadmap = () => {
     progressTotal: Number.isFinite(item?.progressTotal) ? item.progressTotal : null,
     progressUnit: item?.progressUnit || 'element',
     sourceStatus: item?.sourceStatus || 'to_start',
-    plannedFor: item?.plannedFor || null,
     createdAt: Number.isFinite(item?.createdAt) ? item.createdAt : Date.now(),
     order: Number.isFinite(item?.order) ? item.order : index,
   });
@@ -806,7 +805,7 @@ export const useRoadmap = () => {
     return normalized;
   };
 
-  const addRoadmapItem = (item, type = 'movie', plannedFor = null) => {
+  const addRoadmapItem = (item, type = 'movie') => {
     const roadmap = getRoadmap();
     const refId = item?.id != null ? String(item.id) : null;
     const duplicate = roadmap.find((entry) => entry.type === type && entry.refId && refId && entry.refId === refId);
@@ -825,7 +824,6 @@ export const useRoadmap = () => {
       progressTotal: Number.isFinite(item?.progressTotal) ? item.progressTotal : null,
       progressUnit: item?.progressUnit || (type === 'movie' ? 'film' : 'episode'),
       sourceStatus: item?.status || 'to_start',
-      plannedFor,
       createdAt: Date.now(),
       order: roadmap.length,
     };
@@ -833,7 +831,7 @@ export const useRoadmap = () => {
     return saveRoadmap([...roadmap, next]);
   };
 
-  const addManualRoadmapItem = ({ title, type = 'movie', plannedFor = null }) => {
+  const addManualRoadmapItem = ({ title, type = 'movie' }) => {
     const roadmap = getRoadmap();
     const cleanTitle = String(title || '').trim();
     if (!cleanTitle) {
@@ -851,7 +849,6 @@ export const useRoadmap = () => {
       progressTotal: null,
       progressUnit: type === 'movie' ? 'film' : 'element',
       sourceStatus: 'manual',
-      plannedFor,
       createdAt: Date.now(),
       order: roadmap.length,
     };

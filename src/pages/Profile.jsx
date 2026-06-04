@@ -60,6 +60,124 @@ function normalizeRecommendationItem(item, fallbackType = 'movie') {
   };
 }
 
+function parseRatingsSnapshot() {
+  const raw = localStorage.getItem('moviedb_ratings');
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function tokenizeTitle(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((token) => token.length >= 4 && !['avec', 'pour', 'dans', 'the', 'this', 'that', 'from'].includes(token));
+}
+
+function getCanonicalRoadmapOrder(items) {
+  return [...(Array.isArray(items) ? items : [])]
+    .sort((left, right) => {
+      const leftOrder = Number.isFinite(left?.order) ? left.order : Number.MAX_SAFE_INTEGER;
+      const rightOrder = Number.isFinite(right?.order) ? right.order : Number.MAX_SAFE_INTEGER;
+      if (leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+
+      const leftCreated = Number.isFinite(left?.createdAt) ? left.createdAt : 0;
+      const rightCreated = Number.isFinite(right?.createdAt) ? right.createdAt : 0;
+      return leftCreated - rightCreated;
+    });
+}
+
+function getTypeGroups(entries, roadmapEntries, ratingsMap) {
+  const weights = new Map();
+
+  const addWeight = (type, value) => {
+    if (!type || !Number.isFinite(value) || value <= 0) {
+      return;
+    }
+    weights.set(type, (weights.get(type) || 0) + value);
+  };
+
+  entries.forEach((entry) => {
+    const type = entry?.type;
+    const itemId = entry?.id;
+    const ratingBonus = Number(ratingsMap?.[itemId] || 0) * 12;
+
+    if (entry?.source === 'top') {
+      addWeight(type, 140 + ratingBonus);
+      return;
+    }
+
+    if (entry?.status === 'done') {
+      addWeight(type, 110 + ratingBonus);
+      return;
+    }
+
+    if (entry?.status === 'in_progress') {
+      addWeight(type, 90 + ratingBonus);
+      return;
+    }
+
+    if (entry?.status === 'to_resume') {
+      addWeight(type, 75 + ratingBonus);
+    }
+  });
+
+  roadmapEntries.forEach((entry) => addWeight(entry?.type, 35));
+
+  const orderedTypes = Array.from(weights.entries())
+    .sort((left, right) => right[1] - left[1])
+    .map(([type]) => type);
+
+  const screenTypes = orderedTypes.filter((type) => ['movie', 'series', 'anime'].includes(type));
+  const readingTypes = orderedTypes.filter((type) => ['manga', 'manwha', 'light_novel', 'roman'].includes(type));
+
+  const screenScore = screenTypes.reduce((sum, type) => sum + (weights.get(type) || 0), 0);
+  const readingScore = readingTypes.reduce((sum, type) => sum + (weights.get(type) || 0), 0);
+
+  if (screenScore >= readingScore) {
+    return {
+      targetTypes: screenTypes.slice(0, 2).length ? screenTypes.slice(0, 2) : ['movie', 'series'],
+      weights,
+      mode: 'screen',
+    };
+  }
+
+  return {
+    targetTypes: readingTypes.slice(0, 2).length ? readingTypes.slice(0, 2) : ['manga', 'roman'],
+    weights,
+    mode: 'reading',
+  };
+}
+
+function getTitleSimilarityScore(titleTokens, candidateTitle) {
+  if (!titleTokens.size) {
+    return 0;
+  }
+  const tokens = tokenizeTitle(candidateTitle);
+  if (!tokens.length) {
+    return 0;
+  }
+  let overlaps = 0;
+  tokens.forEach((token) => {
+    if (titleTokens.has(token)) {
+      overlaps += 1;
+    }
+  });
+  return overlaps / tokens.length;
+}
+
 function getRoadmapPosterUrl(item) {
   const tmdbPosterPath = item?.poster_path || item?.posterPath;
   if (tmdbPosterPath) {
@@ -91,7 +209,6 @@ function Profile() {
   const [roadmapCandidates, setRoadmapCandidates] = useState([]);
   const [manualRoadmapTitle, setManualRoadmapTitle] = useState('');
   const [manualRoadmapType, setManualRoadmapType] = useState('movie');
-  const [manualRoadmapDate, setManualRoadmapDate] = useState('');
   const [roadmapFilter, setRoadmapFilter] = useState('all');
   const [recommendedItems, setRecommendedItems] = useState([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
@@ -106,18 +223,7 @@ function Profile() {
     const topPicks = getTopPicks();
     const library = getLibrary();
     setStats(computeProfileStats(library, topPicks));
-    setRoadmapItems(
-      getRoadmap()
-        .sort((left, right) => {
-          const leftDate = left?.plannedFor || '9999-12-31';
-          const rightDate = right?.plannedFor || '9999-12-31';
-          const byDate = leftDate.localeCompare(rightDate);
-          if (byDate !== 0) {
-            return byDate;
-          }
-          return Number(left?.order || 0) - Number(right?.order || 0);
-        }),
-    );
+    setRoadmapItems(getCanonicalRoadmapOrder(getRoadmap()));
     setRoadmapCandidates(
       library
         .filter((item) => item && (item?.progressCurrent === 0 || String(item?.status || '').toLowerCase() === 'to_resume'))
@@ -135,18 +241,7 @@ function Profile() {
       .then(([updatedLibrary, updatedTopPicks]) => {
         if (!cancelled) {
           setStats(computeProfileStats(updatedLibrary, updatedTopPicks));
-          setRoadmapItems(
-            getRoadmap()
-              .sort((left, right) => {
-                const leftDate = left?.plannedFor || '9999-12-31';
-                const rightDate = right?.plannedFor || '9999-12-31';
-                const byDate = leftDate.localeCompare(rightDate);
-                if (byDate !== 0) {
-                  return byDate;
-                }
-                return Number(left?.order || 0) - Number(right?.order || 0);
-              }),
-          );
+          setRoadmapItems(getCanonicalRoadmapOrder(getRoadmap()));
           setRoadmapCandidates(
             updatedLibrary
               .filter((item) => item && (item?.progressCurrent === 0 || String(item?.status || '').toLowerCase() === 'to_resume'))
@@ -245,9 +340,22 @@ function Profile() {
         const library = getLibrary();
         const topPicks = getTopPicks();
         const roadmap = getRoadmap();
+        const ratingsMap = parseRatingsSnapshot();
+        const allSignals = [
+          ...topPicks.map((entry) => ({ ...entry, source: 'top' })),
+          ...library,
+        ];
+        const titleTokens = new Set(
+          allSignals
+            .slice(0, 30)
+            .flatMap((entry) => tokenizeTitle(entry?.title || entry?.name)),
+        );
+        const preferenceModel = getTypeGroups(allSignals, roadmap, ratingsMap);
+
         const blocked = new Set(
           [
             ...library.map((entry) => makeMediaKey(entry.id, entry.type)),
+            ...topPicks.map((entry) => makeMediaKey(entry.id, entry.type)),
             ...roadmap.map((entry) => toRoadmapSourceKey(entry)).filter(Boolean),
           ],
         );
@@ -255,101 +363,139 @@ function Profile() {
         const tmdbSeeds = [];
         topPicks
           .filter((entry) => ['movie', 'series', 'anime'].includes(entry?.type))
-          .slice(0, 4)
+          .slice(0, 6)
           .forEach((entry) => tmdbSeeds.push({
             id: entry.id,
             type: entry.type === 'movie' ? 'movie' : 'series',
-            weight: 140,
+            preferredType: entry.type,
+            weight: 180,
           }));
 
         library
-          .filter((entry) => entry?.status === 'done' && ['movie', 'series', 'anime'].includes(entry?.type))
-          .slice(0, 4)
+          .filter((entry) => ['done', 'in_progress', 'to_resume'].includes(entry?.status) && ['movie', 'series', 'anime'].includes(entry?.type))
+          .slice(0, 8)
           .forEach((entry) => tmdbSeeds.push({
             id: entry.id,
             type: entry.type === 'movie' ? 'movie' : 'series',
-            weight: 100,
-          }));
-
-        roadmap
-          .filter((entry) => ['movie', 'series', 'anime'].includes(entry?.type) && entry?.refId)
-          .slice(0, 3)
-          .forEach((entry) => tmdbSeeds.push({
-            id: entry.refId,
-            type: entry.type === 'movie' ? 'movie' : 'series',
-            weight: 80,
+            preferredType: entry.type,
+            weight: entry.status === 'done' ? 120 : 95,
           }));
 
         const candidates = [];
 
-        const seedResults = await Promise.allSettled(
-          tmdbSeeds.map(async (seed) => {
-            const details = seed.type === 'movie'
-              ? await tmdbService.getMovieDetails(seed.id)
-              : await tmdbService.getSeriesDetails(seed.id);
-            const similar = Array.isArray(details?.similar?.results) ? details.similar.results : [];
-            return { seed, similar };
-          }),
-        );
+        if (preferenceModel.mode === 'screen' && tmdbSeeds.length > 0) {
+          const seedResults = await Promise.allSettled(
+            tmdbSeeds.map(async (seed) => {
+              const details = seed.type === 'movie'
+                ? await tmdbService.getMovieDetails(seed.id)
+                : await tmdbService.getSeriesDetails(seed.id);
+              const similar = Array.isArray(details?.similar?.results) ? details.similar.results : [];
+              const seedGenres = Array.isArray(details?.genres)
+                ? details.genres.map((genre) => Number(genre?.id)).filter((genreId) => Number.isFinite(genreId))
+                : [];
+              return { seed, similar, seedGenres };
+            }),
+          );
 
-        seedResults.forEach((result) => {
-          if (result.status !== 'fulfilled') {
-            return;
-          }
-
-          const { seed, similar } = result.value;
-          similar.slice(0, 10).forEach((entry) => {
-            const normalized = normalizeRecommendationItem(entry, seed.type === 'movie' ? 'movie' : 'series');
-            const key = makeMediaKey(normalized.id, normalized.type);
-            if (!normalized.id || blocked.has(key)) {
+          seedResults.forEach((result) => {
+            if (result.status !== 'fulfilled') {
               return;
             }
 
-            candidates.push({
-              ...normalized,
-              key,
-              score: seed.weight + normalized.voteAverage * 12 + Math.min(normalized.popularity, 100),
+            const { seed, similar, seedGenres } = result.value;
+            similar.slice(0, 14).forEach((entry) => {
+              const isAnimeSeed = seed.preferredType === 'anime';
+              const fallbackType = isAnimeSeed ? 'anime' : (seed.type === 'movie' ? 'movie' : 'series');
+              const normalized = normalizeRecommendationItem(entry, fallbackType);
+              const key = makeMediaKey(normalized.id, normalized.type);
+              const aliasKey = normalized.type === 'anime'
+                ? makeMediaKey(normalized.id, 'series')
+                : (normalized.type === 'series' ? makeMediaKey(normalized.id, 'anime') : null);
+              if (!normalized.id || blocked.has(key) || (aliasKey && blocked.has(aliasKey))) {
+                return;
+              }
+
+              if (!preferenceModel.targetTypes.includes(normalized.type)) {
+                return;
+              }
+
+              const candidateGenres = Array.isArray(entry?.genre_ids)
+                ? entry.genre_ids.map((genreId) => Number(genreId)).filter((genreId) => Number.isFinite(genreId))
+                : [];
+              const overlapCount = candidateGenres.filter((genreId) => seedGenres.includes(genreId)).length;
+              const overlapScore = seedGenres.length ? overlapCount / seedGenres.length : 0;
+              const titleSimilarity = getTitleSimilarityScore(titleTokens, normalized.title);
+              const typeWeight = preferenceModel.weights.get(normalized.type) || 0;
+
+              candidates.push({
+                ...normalized,
+                key,
+                score: seed.weight
+                  + typeWeight * 0.18
+                  + normalized.voteAverage * 11
+                  + Math.min(normalized.popularity, 150) * 0.5
+                  + overlapScore * 40
+                  + titleSimilarity * 35,
+              });
             });
           });
+        }
+
+        const fallbackCalls = [];
+        preferenceModel.targetTypes.forEach((type) => {
+          if (type === 'movie') {
+            fallbackCalls.push({
+              type,
+              promise: tmdbService.getTrendingMovies('week'),
+            });
+          } else if (type === 'series') {
+            fallbackCalls.push({
+              type,
+              promise: tmdbService.getTrendingSeries('week'),
+            });
+          } else if (type === 'anime') {
+            fallbackCalls.push({
+              type,
+              promise: tmdbService.getAnime(1, 'rating_desc'),
+            });
+          } else if (type === 'manga') {
+            fallbackCalls.push({ type, promise: readingApi.getMangas(1) });
+          } else if (type === 'manwha') {
+            fallbackCalls.push({ type, promise: readingApi.getManwha(1) });
+          } else if (type === 'light_novel') {
+            fallbackCalls.push({ type, promise: readingApi.getLightNovels(1) });
+          } else if (type === 'roman') {
+            fallbackCalls.push({ type, promise: readingApi.getRomans(1) });
+          }
         });
 
-        const [moviesRes, seriesRes, animeRes, mangaRes, manwhaRes, lightRes, romanRes] = await Promise.allSettled([
-          tmdbService.getTrendingMovies('week'),
-          tmdbService.getTrendingSeries('week'),
-          tmdbService.getAnime(1, 'popularity'),
-          readingApi.getMangas(1),
-          readingApi.getManwha(1),
-          readingApi.getLightNovels(1),
-          readingApi.getRomans(1),
-        ]);
-
-        const fallbackBuckets = [
-          { result: moviesRes, type: 'movie', weight: 25 },
-          { result: seriesRes, type: 'series', weight: 25 },
-          { result: animeRes, type: 'anime', weight: 30 },
-          { result: mangaRes, type: 'manga', weight: 20 },
-          { result: manwhaRes, type: 'manwha', weight: 20 },
-          { result: lightRes, type: 'light_novel', weight: 20 },
-          { result: romanRes, type: 'roman', weight: 20 },
-        ];
-
-        fallbackBuckets.forEach(({ result, type, weight }) => {
+        const fallbackResults = await Promise.allSettled(fallbackCalls.map((entry) => entry.promise));
+        fallbackResults.forEach((result, index) => {
           if (result.status !== 'fulfilled') {
             return;
           }
 
+          const targetType = fallbackCalls[index]?.type;
           const items = Array.isArray(result.value?.results) ? result.value.results : [];
-          items.slice(0, 10).forEach((entry) => {
-            const normalized = normalizeRecommendationItem(entry, type);
+          items.slice(0, 16).forEach((entry) => {
+            const normalized = normalizeRecommendationItem(entry, targetType);
             const key = makeMediaKey(normalized.id, normalized.type);
-            if (!normalized.id || blocked.has(key)) {
+            const aliasKey = normalized.type === 'anime'
+              ? makeMediaKey(normalized.id, 'series')
+              : (normalized.type === 'series' ? makeMediaKey(normalized.id, 'anime') : null);
+            if (!normalized.id || blocked.has(key) || (aliasKey && blocked.has(aliasKey))) {
               return;
             }
 
+            const titleSimilarity = getTitleSimilarityScore(titleTokens, normalized.title);
+            const typeWeight = preferenceModel.weights.get(normalized.type) || 0;
             candidates.push({
               ...normalized,
               key,
-              score: weight + normalized.voteAverage * 8 + Math.min(normalized.popularity, 100),
+              score: typeWeight * 0.25
+                + normalized.voteAverage * 8
+                + Math.min(normalized.popularity, 140) * 0.4
+                + titleSimilarity * 30,
             });
           });
         });
@@ -500,20 +646,12 @@ function Profile() {
   };
 
   const refreshRoadmapState = () => {
-    const sorted = getRoadmap().sort((left, right) => {
-      const leftDate = left?.plannedFor || '9999-12-31';
-      const rightDate = right?.plannedFor || '9999-12-31';
-      const byDate = leftDate.localeCompare(rightDate);
-      if (byDate !== 0) {
-        return byDate;
-      }
-      return Number(left?.order || 0) - Number(right?.order || 0);
-    });
+    const sorted = getCanonicalRoadmapOrder(getRoadmap());
     setRoadmapItems(sorted);
   };
 
   const handleAddRoadmapFromCandidate = (item) => {
-    addRoadmapItem(item, item?.type || 'movie', null);
+    addRoadmapItem(item, item?.type || 'movie');
     refreshRoadmapState();
   };
 
@@ -522,10 +660,8 @@ function Profile() {
     addManualRoadmapItem({
       title: manualRoadmapTitle,
       type: manualRoadmapType,
-      plannedFor: manualRoadmapDate || null,
     });
     setManualRoadmapTitle('');
-    setManualRoadmapDate('');
     refreshRoadmapState();
   };
 
@@ -646,14 +782,14 @@ function Profile() {
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
                   <p className="text-sm uppercase tracking-widest text-gray-500 font-display mb-1">Roadmap</p>
-                  <h2 className="text-2xl font-display uppercase tracking-wider text-gray-700">Planning chronologique a voir / lire</h2>
+                  <h2 className="text-2xl font-display uppercase tracking-wider text-gray-700">Schema de progression: prochain puis suivant</h2>
                 </div>
                 <span className="font-serif text-sm text-gray-500">{roadmapItems.length} element(s)</span>
               </div>
 
               <form onSubmit={handleAddManualRoadmap} className="border border-gray-300 bg-gray-50 p-4 mb-4">
-                <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Ajouter manuellement a la roadmap</p>
-                <div className="grid md:grid-cols-[1fr_150px_170px_auto] gap-2">
+                <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Ajouter manuellement a la file du prochain contenu</p>
+                <div className="grid md:grid-cols-[1fr_150px_auto] gap-2">
                   <input
                     type="text"
                     value={manualRoadmapTitle}
@@ -674,12 +810,6 @@ function Profile() {
                     <option value="light_novel">Light Novel</option>
                     <option value="roman">Roman</option>
                   </select>
-                  <input
-                    type="date"
-                    value={manualRoadmapDate}
-                    onChange={(event) => setManualRoadmapDate(event.target.value)}
-                    className="px-3 py-2 border border-gray-400 bg-white text-gray-800 font-serif"
-                  />
                   <button
                     type="submit"
                     className="px-4 py-2 bg-black text-gray-300 border border-gray-800 font-display uppercase tracking-wider text-xs"
@@ -725,12 +855,14 @@ function Profile() {
               </div>
 
               {filteredRoadmapItems.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="overflow-x-auto pb-2">
+                  <div className="flex items-stretch gap-3 min-w-max">
                   {filteredRoadmapItems.slice(0, 20).map((item, index) => {
                     const posterUrl = getRoadmapPosterUrl(item);
                     const detailPath = getRoadmapPath(item);
                     return (
-                      <div key={item.id} className="block border border-gray-300 bg-gray-50 transition-colors">
+                      <div key={item.id} className="flex items-center gap-3">
+                      <div className="w-44 block border border-gray-300 bg-gray-50 transition-colors">
                         {detailPath ? (
                           <Link to={detailPath} className="block hover:bg-gray-100 transition-colors">
                             <div className="aspect-2/3 bg-gray-200 border-b border-gray-300 overflow-hidden">
@@ -743,11 +875,9 @@ function Profile() {
                               )}
                             </div>
                             <div className="p-3">
-                              <p className="font-display text-xs uppercase tracking-wider text-gray-500 mb-1">{index + 1}. {item.title}</p>
+                              <p className="font-display text-xs uppercase tracking-wider text-gray-500 mb-1">Etape {index + 1}</p>
+                              <p className="font-serif text-sm text-gray-700 line-clamp-2">{item.title}</p>
                               <p className="font-serif text-sm text-gray-700">{MEDIA_LABELS[item.type] || item.type}</p>
-                              <p className="font-serif text-xs text-gray-500 mt-1">
-                                {item?.plannedFor ? `Prevu le ${new Date(item.plannedFor).toLocaleDateString('fr-FR')}` : 'Sans date'}
-                              </p>
                             </div>
                           </Link>
                         ) : (
@@ -762,11 +892,9 @@ function Profile() {
                               )}
                             </div>
                             <div className="p-3">
-                              <p className="font-display text-xs uppercase tracking-wider text-gray-500 mb-1">{index + 1}. {item.title}</p>
+                              <p className="font-display text-xs uppercase tracking-wider text-gray-500 mb-1">Etape {index + 1}</p>
+                              <p className="font-serif text-sm text-gray-700 line-clamp-2">{item.title}</p>
                               <p className="font-serif text-sm text-gray-700">{MEDIA_LABELS[item.type] || item.type}</p>
-                              <p className="font-serif text-xs text-gray-500 mt-1">
-                                {item?.plannedFor ? `Prevu le ${new Date(item.plannedFor).toLocaleDateString('fr-FR')}` : 'Sans date'}
-                              </p>
                             </div>
                           </div>
                         )}
@@ -794,15 +922,20 @@ function Profile() {
                           </button>
                         </div>
                       </div>
+                      {index < filteredRoadmapItems.length - 1 ? (
+                        <span className="font-display text-lg text-gray-500">-&gt;</span>
+                      ) : null}
+                      </div>
                     );
                   })}
+                  </div>
                 </div>
               ) : (
                 <p className="font-serif text-sm text-gray-500">Aucun element futur dans cette categorie.</p>
               )}
 
               <div className="mt-6 border border-gray-300 bg-gray-50 p-4">
-                <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">5 recommandations plus pertinentes (tops + termines + similaires)</p>
+                <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">5 recommandations ciblees selon tes vrais gouts (types preferes + historiques + similarite de titres/genres)</p>
                 {loadingRecommendations ? (
                   <p className="font-serif text-sm text-gray-500">Calcul des recommandations...</p>
                 ) : recommendedItems.length > 0 ? (
