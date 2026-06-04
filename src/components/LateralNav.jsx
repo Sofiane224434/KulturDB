@@ -54,6 +54,9 @@ function LateralNav() {
         { name: 'Accueil', path: '/' },
         { name: 'Ma Bibliothèque', path: '/library' },
         { name: 'Mon profil', path: '/profile' },
+        { name: 'Amis', path: '/friends' },
+        { name: 'Parametres', path: '/settings' },
+        { name: 'Planning', path: '/planning' },
         { name: 'Films', path: '/movies' },
         { name: 'Séries', path: '/series' },
         { name: 'Anime', path: '/anime' },
@@ -356,7 +359,14 @@ function LateralNav() {
             </nav>
 
             <aside className={`hidden md:block md:order-2 md:sticky md:top-0 md:h-screen md:self-start bg-black border-l-2 border-black transition-all duration-300 ${desktopCollapsed ? 'md:w-14 lg:w-14' : 'md:w-75 lg:w-80'}`}>
-                <div className="flex items-center justify-end px-2 py-2 border-b border-gray-800">
+                <div className="flex items-center justify-between px-2 py-2 border-b border-gray-800">
+                    <Link
+                        to="/friends"
+                        aria-label="Gerer les amis"
+                        className={`w-7 h-7 flex items-center justify-center border text-[10px] font-display uppercase tracking-wider ${location.pathname === '/friends' ? 'border-gray-400 text-gray-200 bg-gray-800' : 'border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-500'}`}
+                    >
+                        A
+                    </Link>
                     <button
                         onClick={toggleDesktopSidebar}
                         aria-label={desktopCollapsed ? 'Ouvrir la sidebar' : 'Replier la sidebar'}

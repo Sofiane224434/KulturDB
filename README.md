@@ -77,6 +77,7 @@ Variables OAuth GitHub:
 - Tops personnels visibles dans /library (top films, top series, top anime, top manga, etc.), avec gestion locale via le stockage navigateur
 - Alias legacy conserve: /watchlist redirige vers /library
 - Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, et gestion d amis depuis /profile (compte connecte)
+- Profil: page /profile recentree sur resume compte + statistiques, avec pages dediees /settings (pseudo + couleur), /friends (gestion amis) et /planning (roadmap)
 - Commentaires films/series: choix de visibilite `public` ou `prive` a la publication
 - Activite publique profil: seuls les commentaires `public` sont pris en compte dans les compteurs/details visibles par les autres
 - Profil: roadmap personnelle en file sequentielle (prochain puis suivant...), sans date obligatoire, avec ajout libre + filtres par categorie + options rapides depuis les elements a 0 progression / a reprendre
@@ -121,6 +122,9 @@ Routes frontend ajoutees:
 - /profile
 - /admin/media
 - /auth/verify-email?token=...
+- /settings
+- /friends
+- /planning
 - /auth/oauth-success?token=...
 
 Routes API auth:
