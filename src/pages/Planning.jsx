@@ -46,14 +46,54 @@ function getRoadmapPath(item) {
 }
 
 function normalizeRecommendationItem(item, fallbackType = 'movie') {
+  const mediaType = item?.media_type || item?.type || fallbackType;
+  const normalizedType = mediaType === 'tv' ? fallbackType : mediaType;
   return {
     id: String(item?.id || item?.mal_id || item?.workKey || ''),
-    type: item?.type || fallbackType,
+    type: normalizedType,
     title: item?.title || item?.name || 'Titre indisponible',
     posterPath: item?.poster_path || null,
     image: item?.image || null,
     voteAverage: Number(item?.vote_average || item?.score || 0),
+    voteCount: Number(item?.vote_count || 0),
     popularity: Number(item?.popularity || 0),
+  };
+}
+
+function getVoteVolumePenalty(item, hasUserRatingsSignal) {
+  if (!hasUserRatingsSignal) {
+    return 0;
+  }
+
+  if (!['movie', 'series', 'anime'].includes(item?.type)) {
+    return 0;
+  }
+
+  const voteCount = Number(item?.voteCount || 0);
+  if (!Number.isFinite(voteCount) || voteCount <= 0) {
+    return 85;
+  }
+  if (voteCount <= 20) {
+    return 70;
+  }
+  if (voteCount <= 50) {
+    return 40;
+  }
+  if (voteCount <= 100) {
+    return 20;
+  }
+  return 0;
+}
+
+function normalizePlanningSearchEntry(item, fallbackType = 'movie') {
+  const normalized = normalizeRecommendationItem(item, fallbackType);
+  const finalType = normalized.type === 'tv' ? fallbackType : normalized.type;
+
+  return {
+    ...normalized,
+    type: finalType,
+    progressUnit: finalType === 'movie' ? 'film' : 'element',
+    sourceStatus: 'to_start',
   };
 }
 
@@ -186,13 +226,15 @@ function getRoadmapPosterUrl(item) {
 function Planning() {
   const { isAuthenticated, user } = useAuth();
   const { getLibrary } = useLibrary();
-  const { getRoadmap, addRoadmapItem, addManualRoadmapItem, removeRoadmapItem, moveRoadmapItem } = useRoadmap();
+  const { getRoadmap, addRoadmapItem, removeRoadmapItem, moveRoadmapItem } = useRoadmap();
   const { getTopPicks } = useTopPicks();
 
   const [roadmapItems, setRoadmapItems] = useState([]);
   const [roadmapCandidates, setRoadmapCandidates] = useState([]);
-  const [manualRoadmapTitle, setManualRoadmapTitle] = useState('');
-  const [manualRoadmapType, setManualRoadmapType] = useState('movie');
+  const [planningQuery, setPlanningQuery] = useState('');
+  const [planningSearchType, setPlanningSearchType] = useState('all');
+  const [planningSearchResults, setPlanningSearchResults] = useState([]);
+  const [loadingPlanningSearch, setLoadingPlanningSearch] = useState(false);
   const [roadmapFilter, setRoadmapFilter] = useState('all');
   const [recommendedItems, setRecommendedItems] = useState([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
@@ -244,6 +286,7 @@ function Planning() {
         const topPicks = getTopPicks();
         const roadmap = getRoadmap();
         const ratingsMap = parseRatingsSnapshot();
+        const hasUserRatingsSignal = Object.keys(ratingsMap || {}).length > 0;
         const allSignals = [
           ...topPicks.map((entry) => ({ ...entry, source: 'top' })),
           ...library,
@@ -338,7 +381,8 @@ function Planning() {
                   + normalized.voteAverage * 11
                   + Math.min(normalized.popularity, 150) * 0.5
                   + overlapScore * 40
-                  + titleSimilarity * 35,
+                  + titleSimilarity * 35
+                  - getVoteVolumePenalty(normalized, hasUserRatingsSignal),
               });
             });
           });
@@ -398,7 +442,8 @@ function Planning() {
               score: typeWeight * 0.25
                 + normalized.voteAverage * 8
                 + Math.min(normalized.popularity, 140) * 0.4
-                + titleSimilarity * 30,
+                + titleSimilarity * 30
+                - getVoteVolumePenalty(normalized, hasUserRatingsSignal),
             });
           });
         });
@@ -436,6 +481,80 @@ function Planning() {
     };
   }, [isAuthenticated, user?.id]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const searchPlanningEntries = async () => {
+      const query = String(planningQuery || '').trim();
+      if (query.length < 2) {
+        setPlanningSearchResults([]);
+        return;
+      }
+
+      setLoadingPlanningSearch(true);
+
+      try {
+        let entries = [];
+
+        if (planningSearchType === 'movie') {
+          const data = await tmdbService.searchMovies(query, 1);
+          entries = (Array.isArray(data?.results) ? data.results : []).map((entry) => normalizePlanningSearchEntry(entry, 'movie'));
+        } else if (planningSearchType === 'series') {
+          const data = await tmdbService.searchSeries(query, 1);
+          entries = (Array.isArray(data?.results) ? data.results : []).map((entry) => normalizePlanningSearchEntry(entry, 'series'));
+        } else if (planningSearchType === 'anime') {
+          const data = await tmdbService.searchAnime(query, 1);
+          entries = (Array.isArray(data?.results) ? data.results : []).map((entry) => normalizePlanningSearchEntry(entry, 'anime'));
+        } else if (planningSearchType === 'manga') {
+          const data = await readingApi.searchMangas(query, 1);
+          entries = (Array.isArray(data?.results) ? data.results : []).map((entry) => normalizePlanningSearchEntry(entry, 'manga'));
+        } else if (planningSearchType === 'manwha') {
+          const data = await readingApi.searchManwha(query, 1);
+          entries = (Array.isArray(data?.results) ? data.results : []).map((entry) => normalizePlanningSearchEntry(entry, 'manwha'));
+        } else if (planningSearchType === 'light_novel') {
+          const data = await readingApi.searchLightNovels(query, 1);
+          entries = (Array.isArray(data?.results) ? data.results : []).map((entry) => normalizePlanningSearchEntry(entry, 'light_novel'));
+        } else if (planningSearchType === 'roman') {
+          const data = await readingApi.searchRomans(query, 1);
+          entries = (Array.isArray(data?.results) ? data.results : []).map((entry) => normalizePlanningSearchEntry(entry, 'roman'));
+        } else {
+          const data = await tmdbService.searchMulti(query);
+          const raw = Array.isArray(data?.results) ? data.results : [];
+          entries = raw
+            .filter((entry) => entry?.media_type === 'movie' || entry?.media_type === 'tv')
+            .map((entry) => normalizePlanningSearchEntry(entry, entry.media_type === 'movie' ? 'movie' : 'series'));
+        }
+
+        const deduped = new Map();
+        entries.forEach((entry) => {
+          const key = makeMediaKey(entry.id, entry.type);
+          if (!entry?.id || deduped.has(key)) {
+            return;
+          }
+          deduped.set(key, entry);
+        });
+
+        if (!cancelled) {
+          setPlanningSearchResults(Array.from(deduped.values()).slice(0, 12));
+        }
+      } catch {
+        if (!cancelled) {
+          setPlanningSearchResults([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingPlanningSearch(false);
+        }
+      }
+    };
+
+    const timer = setTimeout(searchPlanningEntries, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [planningQuery, planningSearchType]);
+
   const refreshRoadmapState = () => {
     const sorted = getCanonicalRoadmapOrder(getRoadmap());
     setRoadmapItems(sorted);
@@ -446,13 +565,10 @@ function Planning() {
     refreshRoadmapState();
   };
 
-  const handleAddManualRoadmap = (event) => {
-    event.preventDefault();
-    addManualRoadmapItem({
-      title: manualRoadmapTitle,
-      type: manualRoadmapType,
-    });
-    setManualRoadmapTitle('');
+  const handleAddRoadmapFromSearch = (item) => {
+    addRoadmapItem(item, item?.type || 'movie');
+    setPlanningQuery('');
+    setPlanningSearchResults([]);
     refreshRoadmapState();
   };
 
@@ -485,21 +601,22 @@ function Planning() {
               <span className="font-serif text-sm text-gray-500">{roadmapItems.length} element(s)</span>
             </div>
 
-            <form onSubmit={handleAddManualRoadmap} className="border border-gray-300 bg-gray-50 p-4 mb-4">
-              <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Ajouter manuellement a la file du prochain contenu</p>
-              <div className="grid md:grid-cols-[1fr_150px_auto] gap-2">
+            <div className="border border-gray-300 bg-gray-50 p-4 mb-4">
+              <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-2">Ajouter un titre existant par recherche</p>
+              <div className="grid md:grid-cols-[1fr_160px] gap-2 mb-2">
                 <input
-                  type="text"
-                  value={manualRoadmapTitle}
-                  onChange={(event) => setManualRoadmapTitle(event.target.value)}
-                  placeholder="Titre a planifier"
+                  type="search"
+                  value={planningQuery}
+                  onChange={(event) => setPlanningQuery(event.target.value)}
+                  placeholder="Rechercher un titre existant"
                   className="px-3 py-2 border border-gray-400 bg-white text-gray-800 font-serif"
                 />
                 <select
-                  value={manualRoadmapType}
-                  onChange={(event) => setManualRoadmapType(event.target.value)}
+                  value={planningSearchType}
+                  onChange={(event) => setPlanningSearchType(event.target.value)}
                   className="px-3 py-2 border border-gray-400 bg-white text-gray-800 font-serif"
                 >
+                  <option value="all">Tout (films/series)</option>
                   <option value="movie">Film</option>
                   <option value="series">Serie</option>
                   <option value="anime">Anime</option>
@@ -508,14 +625,32 @@ function Planning() {
                   <option value="light_novel">Light Novel</option>
                   <option value="roman">Roman</option>
                 </select>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-black text-gray-300 border border-gray-800 font-display uppercase tracking-wider text-xs"
-                >
-                  Ajouter
-                </button>
               </div>
-            </form>
+              {loadingPlanningSearch ? (
+                <p className="font-serif text-sm text-gray-500">Recherche en cours...</p>
+              ) : planningQuery.trim().length >= 2 ? (
+                planningSearchResults.length > 0 ? (
+                  <div className="grid md:grid-cols-2 gap-2">
+                    {planningSearchResults.map((item) => (
+                      <div key={makeMediaKey(item.id, item.type)} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-2">
+                        <p className="font-serif text-sm text-gray-700 line-clamp-1">{item.title} ({MEDIA_LABELS[item.type] || item.type})</p>
+                        <button
+                          type="button"
+                          onClick={() => handleAddRoadmapFromSearch(item)}
+                          className="px-3 py-1 border border-gray-400 bg-white text-gray-700 font-display uppercase tracking-wider text-xs"
+                        >
+                          Ajouter
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="font-serif text-sm text-gray-500">Aucune fiche existante trouvee.</p>
+                )
+              ) : (
+                <p className="font-serif text-sm text-gray-500">Tape au moins 2 caracteres pour rechercher.</p>
+              )}
+            </div>
 
             {roadmapCandidates.length > 0 ? (
               <div className="border border-gray-300 bg-gray-50 p-4 mb-4">

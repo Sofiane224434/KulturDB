@@ -80,8 +80,8 @@ Variables OAuth GitHub:
 - Profil: page /profile recentree sur resume compte + statistiques, avec pages dediees /settings (pseudo + avatar + confidentialite), /friends (abonnes/abonnements) et /planning (roadmap)
 - Commentaires films/series: choix de visibilite `public` ou `prive` a la publication
 - Activite publique profil: seuls les commentaires `public` sont pris en compte dans les compteurs/details visibles par les autres
-- Profil: roadmap personnelle en file sequentielle (prochain puis suivant...), sans date obligatoire, avec ajout libre + filtres par categorie + options rapides depuis les elements a 0 progression / a reprendre
-- Profil: 5 recommandations ciblees par score de pertinence (types preferes, historique reels tops/bibliotheque, similarite titres + genres), en excluant ce qui est deja vu ou deja planifie
+- Profil: roadmap personnelle en file sequentielle (prochain puis suivant...), sans date obligatoire, avec ajout par recherche de fiches existantes + filtres par categorie + options rapides depuis les elements a 0 progression / a reprendre
+- Profil: 5 recommandations ciblees par score de pertinence (types preferes, historique reels tops/bibliotheque, similarite titres + genres), en excluant ce qui est deja vu ou deja planifie et en penalisant les contenus avec trop peu de votes TMDB quand des notes utilisateur existent deja
 - Profil: acces au profil d un autre utilisateur depuis la recherche/les listes d abonnements (`/profile/:userId`)
 - Profil utilisateur public (`/profile/:userId`): affichage de l activite synchronisee (tops, suivi, notes, commentaires, moyenne)
 - Profil utilisateur public (`/profile/:userId`): details visibles pour tops/suivi/termines/notes/commentaires (pas seulement les compteurs)
@@ -98,7 +98,8 @@ Variables OAuth GitHub:
 - Cas specifiques verrouilles: Inazuma Eleven GO Chrono Stone (51) et Inazuma Eleven GO Galaxy (43) forces en `anime` avec total exact
 - Fiche detail serie/anime: affichage episodes/saisons aligne sur la resolution multi-sources pour limiter les faux `1 episode`
 - Titres medias: affichage nettoye pour eviter les caracteres japonais/coreens dans les titres visibles (fallback latin)
-- Catalogue anime: source elargie et fusionnee (TMDB origin country JP/KR/CN + original language ja/ko/zh, dedoublonnage et tolerance aux reponses partielles) avec filtrage strict pays/langue pour exclure les animations occidentales du listing anime
+- Catalogues films/series/anime + recherche TMDB: dedoublonnage renforce (titre+annee et affiche identique) pour limiter les fiches dupliquees entre langues
+- Catalogues TMDB + recherche anime: exclusion des fiches sans titre lisible en alphabet latin (pas d affichage en ecriture japonaise/coreenne)
 - Administration: compte admin bootstrap via variables d environnement (role `admin`) avec acces a une page de gestion `/admin/media`
 - Administration des fiches: ajout/modification/suppression d overrides TMDB (titre, synopsis, affiche, saisons, episodes) + possibilite de masquer une fiche des catalogues publics
 - Catalogues/detail films/series/anime: application automatique des overrides admin (masquage et corrections metadata)

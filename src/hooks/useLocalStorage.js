@@ -808,7 +808,18 @@ export const useRoadmap = () => {
   const addRoadmapItem = (item, type = 'movie') => {
     const roadmap = getRoadmap();
     const refId = item?.id != null ? String(item.id) : null;
-    const duplicate = roadmap.find((entry) => entry.type === type && entry.refId && refId && entry.refId === refId);
+    const duplicate = roadmap.find((entry) => {
+      if (!entry.refId || !refId || entry.refId !== refId) {
+        return false;
+      }
+
+      if (entry.type === type) {
+        return true;
+      }
+
+      const aliasPair = (entry.type === 'anime' && type === 'series') || (entry.type === 'series' && type === 'anime');
+      return aliasPair;
+    });
     if (duplicate) {
       return roadmap;
     }

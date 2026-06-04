@@ -42,6 +42,92 @@ function normalizeTitleValue(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
+function normalizeTitleForDedup(value) {
+  return normalizeTitleValue(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractReleaseYear(item) {
+  const sourceDate = item?.release_date || item?.first_air_date || null;
+  if (!sourceDate) {
+    return null;
+  }
+  const date = new Date(sourceDate);
+  const year = date.getFullYear();
+  return Number.isFinite(year) ? year : null;
+}
+
+function scoreCatalogCandidate(item) {
+  const voteCount = Number(item?.vote_count || 0);
+  const voteAverage = Number(item?.vote_average || 0);
+  const popularity = Number(item?.popularity || 0);
+  return voteCount * 2 + voteAverage * 12 + Math.min(popularity, 200) * 0.5;
+}
+
+function hasLatinReadableTitle(item) {
+  const titleCandidates = [
+    item?.title,
+    item?.name,
+    item?.original_title,
+    item?.original_name,
+  ];
+
+  return titleCandidates.some((candidate) => {
+    const normalized = normalizeTitleValue(candidate);
+    return normalized && !hasBlockedTitleChars(normalized);
+  });
+}
+
+function dedupeAndFilterCatalogItems(items = []) {
+  const safeItems = Array.isArray(items) ? items : [];
+  const ordered = [...safeItems].sort((left, right) => scoreCatalogCandidate(right) - scoreCatalogCandidate(left));
+  const seenByPoster = new Set();
+  const seenByTitleYear = new Set();
+  const kept = [];
+
+  ordered.forEach((item) => {
+    if (!item?.id) {
+      return;
+    }
+
+    if (!hasLatinReadableTitle(item)) {
+      return;
+    }
+
+    const displayTitle = getSafeDisplayTitle(item?.name, item?.title, item?.original_name, item?.original_title);
+    const normalizedTitle = normalizeTitleForDedup(displayTitle);
+    const releaseYear = extractReleaseYear(item);
+    const titleYearKey = normalizedTitle
+      ? `${normalizedTitle}::${releaseYear || 'na'}`
+      : null;
+    const posterKey = normalizeTitleValue(item?.poster_path || '');
+
+    if (titleYearKey && seenByTitleYear.has(titleYearKey)) {
+      return;
+    }
+
+    if (posterKey && seenByPoster.has(posterKey)) {
+      return;
+    }
+
+    if (titleYearKey) {
+      seenByTitleYear.add(titleYearKey);
+    }
+    if (posterKey) {
+      seenByPoster.add(posterKey);
+    }
+
+    kept.push(item);
+  });
+
+  return kept;
+}
+
 function hasBlockedTitleChars(value) {
   return BLOCKED_TITLE_CHARS_REGEX.test(String(value || ''));
 }
@@ -277,7 +363,7 @@ function applyCatalogOverrides(items, mediaType, forcedEntries) {
     }, entry, mediaType));
   });
 
-  return next;
+  return dedupeAndFilterCatalogItems(next);
 }
 
 function isLikelyAnimeItem(item) {
@@ -313,13 +399,17 @@ export const tmdbService = {
     const overrides = await getCatalogOverrides();
     return {
       ...data,
-      results: applyCatalogOverrides(data?.results, 'movie', overrides.forcedEntries),
+      results: dedupeAndFilterCatalogItems(applyCatalogOverrides(data?.results, 'movie', overrides.forcedEntries)),
     };
   },
 
   getTrendingMovies: async (timeWindow = 'week') => {
     const response = await fetch(`${BASE_URL}/trending/movie/${timeWindow}?api_key=${API_KEY}&language=fr-FR`);
-    return response.json();
+    const data = await response.json();
+    return {
+      ...data,
+      results: dedupeAndFilterCatalogItems(data?.results),
+    };
   },
 
   getMovieDetails: async (movieId) => {
@@ -331,7 +421,11 @@ export const tmdbService = {
 
   searchMovies: async (query, page = 1) => {
     const response = await fetch(`${BASE_URL}/search/movie?api_key=${API_KEY}&language=fr-FR&query=${encodeURIComponent(query)}&page=${page}`);
-    return response.json();
+    const data = await response.json();
+    return {
+      ...data,
+      results: dedupeAndFilterCatalogItems(data?.results),
+    };
   },
 
   // Séries
@@ -342,13 +436,17 @@ export const tmdbService = {
     const overrides = await getCatalogOverrides();
     return {
       ...data,
-      results: applyCatalogOverrides(data?.results, 'series', overrides.forcedEntries),
+      results: dedupeAndFilterCatalogItems(applyCatalogOverrides(data?.results, 'series', overrides.forcedEntries)),
     };
   },
 
   getTrendingSeries: async (timeWindow = 'week') => {
     const response = await fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=fr-FR&without_genres=16&sort_by=popularity.desc&page=1`);
-    return response.json();
+    const data = await response.json();
+    return {
+      ...data,
+      results: dedupeAndFilterCatalogItems(data?.results),
+    };
   },
 
   getSeriesDetails: async (seriesId) => {
@@ -380,14 +478,18 @@ export const tmdbService = {
 
     return {
       ...data,
-      results: applyCatalogOverrides(filtered, 'series', overrides.forcedEntries),
+      results: dedupeAndFilterCatalogItems(applyCatalogOverrides(filtered, 'series', overrides.forcedEntries)),
     };
   },
 
   // Recherche multi (films + séries)
   searchMulti: async (query) => {
     const response = await fetch(`${BASE_URL}/search/multi?api_key=${API_KEY}&language=fr-FR&query=${encodeURIComponent(query)}`);
-    return response.json();
+    const data = await response.json();
+    return {
+      ...data,
+      results: dedupeAndFilterCatalogItems(data?.results),
+    };
   },
 
   // Anime (films et séries d'animation japonaise)
@@ -418,7 +520,7 @@ export const tmdbService = {
       mergedMap.set(item.id, item);
     }
 
-    const filteredResults = Array.from(mergedMap.values()).filter(isLikelyAnimeItem);
+    const filteredResults = dedupeAndFilterCatalogItems(Array.from(mergedMap.values()).filter(isLikelyAnimeItem));
     const mergedResults = sortAnimeResults(filteredResults, sortKey).slice(0, ANIME_RESULTS_LIMIT);
 
     const referenceData = successfulResults[0] || {};
@@ -437,9 +539,22 @@ export const tmdbService = {
     return {
       ...referenceData,
       page,
-      results: withOverrides,
+      results: dedupeAndFilterCatalogItems(withOverrides),
       total_pages: totalPages,
       total_results: totalResults,
+    };
+  },
+
+  searchAnime: async (query, page = 1) => {
+    const response = await fetch(`${BASE_URL}/search/tv?api_key=${API_KEY}&language=fr-FR&query=${encodeURIComponent(query)}&page=${page}`);
+    const data = await response.json();
+    const filtered = Array.isArray(data?.results)
+      ? data.results.filter((item) => isLikelyAnimeItem(item))
+      : [];
+
+    return {
+      ...data,
+      results: dedupeAndFilterCatalogItems(filtered),
     };
   },
 
