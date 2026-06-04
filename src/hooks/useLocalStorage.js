@@ -136,37 +136,9 @@ async function fetchJikanAnimeSignal({ title, year }) {
     return animeSignalCache.get(cacheKey);
   }
 
-  try {
-    const response = await fetch(`${JIKAN_BASE_URL}/anime?q=${encodeURIComponent(title)}&limit=10&sfw=true`);
-    const payload = await response.json();
-    const candidates = Array.isArray(payload?.data) ? payload.data : [];
-
-    let bestCandidate = null;
-    let bestScore = -Infinity;
-
-    for (const candidate of candidates) {
-      const score = scoreJikanCandidate(normalizedTitle, year, candidate);
-      if (score > bestScore) {
-        bestCandidate = candidate;
-        bestScore = score;
-      }
-    }
-
-    const hasSolidMatch = bestCandidate && bestScore >= 5;
-    const signal = hasSolidMatch
-      ? {
-          isAnime: true,
-          episodes: Number.isFinite(bestCandidate?.episodes) ? bestCandidate.episodes : null,
-          source: 'jikan',
-        }
-      : null;
-
-    animeSignalCache.set(cacheKey, signal);
-    return signal;
-  } catch (_error) {
-    animeSignalCache.set(cacheKey, null);
-    return null;
-  }
+  // Evite les erreurs 429 cote navigateur: on n interroge plus Jikan depuis le front.
+  animeSignalCache.set(cacheKey, null);
+  return null;
 }
 
 async function fetchAniListAnimeSignal({ title, year }) {

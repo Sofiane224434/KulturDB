@@ -596,6 +596,100 @@ router.get('/subscriptions', requireAuth, (req, res) => {
     });
 });
 
+// Compatibilite legacy: ancien systeme /friends
+router.get('/friends', requireAuth, (req, res) => {
+    const followers = listFollowersForUser(req.user.id, req.user.id);
+    const following = listFollowingForUser(req.user.id, req.user.id);
+    const incoming = listIncomingFollowRequests(req.user.id);
+
+    return res.json({
+        friends: following
+            .filter((entry) => entry.isFriend)
+            .map((entry) => ({
+                id: entry.id,
+                displayName: entry.displayName,
+                avatarUrl: entry.avatarUrl || null,
+                requestId: null,
+            })),
+        incomingRequests: incoming.map((entry) => ({
+            id: entry.id,
+            displayName: entry.displayName,
+            avatarUrl: entry.avatarUrl || null,
+            requestId: entry.id,
+        })),
+        outgoingRequests: followers
+            .filter((entry) => !entry.isFollowedByCurrentUser)
+            .map((entry) => ({
+                id: entry.id,
+                displayName: entry.displayName,
+                avatarUrl: entry.avatarUrl || null,
+                requestId: entry.id,
+            })),
+    });
+});
+
+router.post('/friends/requests', requireAuth, (req, res) => {
+    const targetUserId = Number(req.body?.userId);
+    if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+        return res.status(400).json({ message: 'Utilisateur cible invalide.' });
+    }
+
+    if (targetUserId === req.user.id) {
+        return res.status(400).json({ message: 'Tu ne peux pas t ajouter toi-meme.' });
+    }
+
+    const targetUser = findUserById(targetUserId);
+    if (!targetUser || !targetUser.email_verified) {
+        return res.status(404).json({ message: 'Utilisateur introuvable.' });
+    }
+
+    const existing = findFollowRelation(req.user.id, targetUserId);
+    if (existing?.status === 'accepted') {
+        return res.status(409).json({ message: 'Tu es deja abonne.' });
+    }
+
+    if (existing?.status === 'pending') {
+        return res.status(409).json({ message: 'Une demande est deja en cours.' });
+    }
+
+    const status = targetUser.is_private ? 'pending' : 'accepted';
+    createFollowRequest(req.user.id, targetUserId, status);
+
+    return res.status(201).json({
+        message: status === 'pending' ? 'Demande d abonnement envoyee.' : 'Abonnement actif.',
+        status,
+    });
+});
+
+router.post('/friends/requests/:requestId/accept', requireAuth, (req, res) => {
+    const requesterUserId = Number(req.params.requestId);
+    if (!Number.isInteger(requesterUserId) || requesterUserId <= 0) {
+        return res.status(400).json({ message: 'Demande invalide.' });
+    }
+
+    const pending = findFollowRelation(requesterUserId, req.user.id);
+    if (!pending || pending.status !== 'pending') {
+        return res.status(404).json({ message: 'Demande introuvable.' });
+    }
+
+    updateFollowStatus(requesterUserId, req.user.id, 'accepted');
+    return res.json({ message: 'Demande acceptee.' });
+});
+
+router.delete('/friends/:userId', requireAuth, (req, res) => {
+    const targetUserId = Number(req.params.userId);
+    if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+        return res.status(400).json({ message: 'Utilisateur invalide.' });
+    }
+
+    const result = deleteFollowRelation(req.user.id, targetUserId);
+    if (!result.changes) {
+        return res.status(404).json({ message: 'Relation introuvable.' });
+    }
+
+    return res.json({ message: 'Relation supprimee.' });
+});
+
 router.post('/subscriptions/:userId', requireAuth, (req, res) => {
     const targetUserId = Number(req.params.userId);
     if (!Number.isInteger(targetUserId) || targetUserId <= 0) {

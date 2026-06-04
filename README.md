@@ -94,6 +94,7 @@ Variables OAuth GitHub:
 - Profil: le temps regarde est affiche en mois / jours / heures
 - Bibliotheque/Tops: reclassification automatique des anciens anime stockes par erreur comme series lors du rafraichissement TMDB
 - Bibliotheque/Tops: reclassification anime renforcee via croisement TMDB + Jikan (MyAnimeList) pour eviter les faux `series`
+- Bibliotheque/Tops: le front n interroge plus Jikan directement pour eviter les erreurs 429 cote navigateur; le croisement repose sur les autres sources disponibles cote client
 - Bibliotheque: nombre total d episodes TV corrige avec fusion des sources (TMDB + somme des saisons + Jikan + AniList + Kitsu, valeur la plus fiable)
 - Cas specifiques verrouilles: Inazuma Eleven GO Chrono Stone (51) et Inazuma Eleven GO Galaxy (43) forces en `anime` avec total exact
 - Fiche detail serie/anime: affichage episodes/saisons aligne sur la resolution multi-sources pour limiter les faux `1 episode`
@@ -146,6 +147,7 @@ Routes API auth:
 - POST /api/auth/subscriptions/:userId
 - POST /api/auth/subscriptions/:userId/accept
 - DELETE /api/auth/subscriptions/:userId
+- Compatibilite legacy conservee: GET /api/auth/friends, POST /api/auth/friends/requests, POST /api/auth/friends/requests/:requestId/accept, DELETE /api/auth/friends/:userId
 - GET /api/auth/users/:userId/profile-comments
 - POST /api/auth/users/:userId/profile-comments
 - DELETE /api/auth/users/:userId/profile-comments/:commentId
