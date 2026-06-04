@@ -57,7 +57,7 @@ export function findUserById(id) {
 export function findPublicUserById(id) {
     return db
         .prepare(
-            `SELECT id, display_name, provider, role, created_at
+            `SELECT id, display_name, provider, role, avatar_url, is_private, created_at
              FROM users
              WHERE id = ? AND email_verified = 1`,
         )
@@ -107,6 +107,34 @@ export function updateUserDisplayName(userId, displayName) {
          SET display_name = ?, updated_at = datetime('now')
          WHERE id = ?`,
     ).run(displayName, userId);
+
+    return findUserById(userId);
+}
+
+export function updateUserProfileSettings(userId, patch = {}) {
+    const current = findUserById(userId);
+    if (!current) {
+        return null;
+    }
+
+    const nextDisplayName = Object.prototype.hasOwnProperty.call(patch, 'displayName')
+        ? String(patch.displayName || '').trim()
+        : current.display_name;
+    const nextAvatarUrl = Object.prototype.hasOwnProperty.call(patch, 'avatarUrl')
+        ? (String(patch.avatarUrl || '').trim() || null)
+        : (current.avatar_url || null);
+    const nextPrivate = Object.prototype.hasOwnProperty.call(patch, 'isPrivate')
+        ? (patch.isPrivate ? 1 : 0)
+        : (current.is_private ? 1 : 0);
+
+    db.prepare(
+        `UPDATE users
+         SET display_name = ?,
+             avatar_url = ?,
+             is_private = ?,
+             updated_at = datetime('now')
+         WHERE id = ?`,
+    ).run(nextDisplayName, nextAvatarUrl, nextPrivate, userId);
 
     return findUserById(userId);
 }
@@ -187,6 +215,8 @@ export function publicUser(user) {
         id: user.id,
         email: user.email,
         displayName: user.display_name,
+        avatarUrl: user.avatar_url || null,
+        isPrivate: !!user.is_private,
         emailVerified: !!user.email_verified,
         provider: user.provider,
         role: user.role || 'user',
@@ -411,18 +441,21 @@ export function searchUsers(query, currentUserId, limit = 20) {
             `SELECT
                 u.id,
                 u.display_name,
+                                u.avatar_url,
+                                u.is_private,
                 u.provider,
                 u.created_at,
-                f.id AS friendship_id,
-                f.requester_id,
-                f.addressee_id,
-                f.status AS friendship_status
+                                outgoing.id AS outgoing_id,
+                                outgoing.status AS outgoing_status,
+                                incoming.id AS incoming_id,
+                                incoming.status AS incoming_status
              FROM users u
-             LEFT JOIN friendships f
-               ON (
-                    (f.requester_id = @currentUserId AND f.addressee_id = u.id)
-                 OR (f.requester_id = u.id AND f.addressee_id = @currentUserId)
-               )
+                         LEFT JOIN friendships outgoing
+                             ON outgoing.requester_id = @currentUserId
+                            AND outgoing.addressee_id = u.id
+                         LEFT JOIN friendships incoming
+                             ON incoming.requester_id = u.id
+                            AND incoming.addressee_id = @currentUserId
              WHERE u.id <> @currentUserId
                AND u.email_verified = 1
                AND (
@@ -537,6 +570,231 @@ export function listOutgoingFriendRequests(userId) {
              ORDER BY datetime(f.created_at) DESC`,
         )
         .all(userId);
+}
+
+export function findFollowRelation(followerId, followedId) {
+    return db
+        .prepare(
+            `SELECT *
+             FROM friendships
+             WHERE requester_id = ? AND addressee_id = ?`,
+        )
+        .get(followerId, followedId);
+}
+
+export function createFollowRequest(followerId, followedId, status = 'accepted') {
+    const result = db
+        .prepare(
+            `INSERT INTO friendships (requester_id, addressee_id, status)
+             VALUES (?, ?, ?)`,
+        )
+        .run(followerId, followedId, status === 'pending' ? 'pending' : 'accepted');
+
+    return db.prepare('SELECT * FROM friendships WHERE id = ?').get(result.lastInsertRowid);
+}
+
+export function updateFollowStatus(followerId, followedId, status = 'accepted') {
+    db.prepare(
+        `UPDATE friendships
+         SET status = ?, updated_at = datetime('now')
+         WHERE requester_id = ? AND addressee_id = ?`,
+    ).run(status === 'pending' ? 'pending' : 'accepted', followerId, followedId);
+
+    return findFollowRelation(followerId, followedId);
+}
+
+export function deleteFollowRelation(followerId, followedId) {
+    return db
+        .prepare(
+            `DELETE FROM friendships
+             WHERE requester_id = ? AND addressee_id = ?`,
+        )
+        .run(followerId, followedId);
+}
+
+export function getRelationshipBetweenUsers(currentUserId, targetUserId) {
+    const outgoing = findFollowRelation(currentUserId, targetUserId);
+    const incoming = findFollowRelation(targetUserId, currentUserId);
+    const isFriend = outgoing?.status === 'accepted' && incoming?.status === 'accepted';
+
+    return {
+        outgoingStatus: outgoing?.status || 'none',
+        incomingStatus: incoming?.status || 'none',
+        isFriend,
+    };
+}
+
+export function listFollowersForUser(userId, currentUserId = null) {
+    const rows = db
+        .prepare(
+            `SELECT
+                follower.id,
+                follower.display_name,
+                follower.avatar_url,
+                relation.status AS relation_status,
+                back.status AS back_status
+             FROM friendships relation
+             JOIN users follower ON follower.id = relation.requester_id
+             LEFT JOIN friendships back
+               ON back.requester_id = relation.addressee_id
+              AND back.addressee_id = relation.requester_id
+             WHERE relation.addressee_id = ?
+               AND relation.status = 'accepted'
+             ORDER BY datetime(relation.updated_at) DESC`,
+        )
+        .all(userId);
+
+    return rows.map((row) => ({
+        id: row.id,
+        displayName: row.display_name,
+        avatarUrl: row.avatar_url || null,
+        isFriend: row.relation_status === 'accepted' && row.back_status === 'accepted',
+        isFollowedByCurrentUser: currentUserId ? !!findFollowRelation(currentUserId, row.id) : false,
+    }));
+}
+
+export function listFollowingForUser(userId, currentUserId = null) {
+    const rows = db
+        .prepare(
+            `SELECT
+                followed.id,
+                followed.display_name,
+                followed.avatar_url,
+                relation.status AS relation_status,
+                back.status AS back_status
+             FROM friendships relation
+             JOIN users followed ON followed.id = relation.addressee_id
+             LEFT JOIN friendships back
+               ON back.requester_id = relation.addressee_id
+              AND back.addressee_id = relation.requester_id
+             WHERE relation.requester_id = ?
+               AND relation.status = 'accepted'
+             ORDER BY datetime(relation.updated_at) DESC`,
+        )
+        .all(userId);
+
+    return rows.map((row) => ({
+        id: row.id,
+        displayName: row.display_name,
+        avatarUrl: row.avatar_url || null,
+        isFriend: row.relation_status === 'accepted' && row.back_status === 'accepted',
+        isFollowedByCurrentUser: currentUserId ? !!findFollowRelation(currentUserId, row.id) : false,
+    }));
+}
+
+export function listIncomingFollowRequests(userId) {
+    return db
+        .prepare(
+            `SELECT
+                u.id,
+                u.display_name,
+                u.avatar_url,
+                f.created_at
+             FROM friendships f
+             JOIN users u ON u.id = f.requester_id
+             WHERE f.addressee_id = ?
+               AND f.status = 'pending'
+             ORDER BY datetime(f.created_at) DESC`,
+        )
+        .all(userId)
+        .map((row) => ({
+            id: row.id,
+            displayName: row.display_name,
+            avatarUrl: row.avatar_url || null,
+            createdAt: row.created_at,
+        }));
+}
+
+export function countFollowers(userId) {
+    const row = db
+        .prepare(
+            `SELECT COUNT(*) AS total
+             FROM friendships
+             WHERE addressee_id = ?
+               AND status = 'accepted'`,
+        )
+        .get(userId);
+
+    return Number(row?.total || 0);
+}
+
+export function countFollowing(userId) {
+    const row = db
+        .prepare(
+            `SELECT COUNT(*) AS total
+             FROM friendships
+             WHERE requester_id = ?
+               AND status = 'accepted'`,
+        )
+        .get(userId);
+
+    return Number(row?.total || 0);
+}
+
+export function listProfileComments(profileUserId, limit = 30) {
+    return db
+        .prepare(
+            `SELECT
+                c.id,
+                c.content,
+                c.created_at,
+                c.updated_at,
+                u.id AS author_id,
+                u.display_name AS author_display_name,
+                u.avatar_url AS author_avatar_url
+             FROM profile_comments c
+             JOIN users u ON u.id = c.author_user_id
+             WHERE c.profile_user_id = ?
+             ORDER BY datetime(c.created_at) DESC
+             LIMIT ?`,
+        )
+        .all(profileUserId, limit)
+        .map((row) => ({
+            id: row.id,
+            content: row.content,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            author: {
+                id: row.author_id,
+                displayName: row.author_display_name,
+                avatarUrl: row.author_avatar_url || null,
+            },
+        }));
+}
+
+export function createProfileComment(profileUserId, authorUserId, content) {
+    const result = db
+        .prepare(
+            `INSERT INTO profile_comments (profile_user_id, author_user_id, content)
+             VALUES (?, ?, ?)`,
+        )
+        .run(profileUserId, authorUserId, String(content || '').trim());
+
+    const row = db
+        .prepare('SELECT * FROM profile_comments WHERE id = ?')
+        .get(result.lastInsertRowid);
+
+    return row;
+}
+
+export function deleteProfileComment(commentId, requesterUserId) {
+    const comment = db
+        .prepare('SELECT * FROM profile_comments WHERE id = ?')
+        .get(commentId);
+
+    if (!comment) {
+        return { deleted: false, reason: 'not_found' };
+    }
+
+    if (comment.author_user_id !== requesterUserId && comment.profile_user_id !== requesterUserId) {
+        return { deleted: false, reason: 'forbidden' };
+    }
+
+    db
+        .prepare('DELETE FROM profile_comments WHERE id = ?')
+        .run(commentId);
+
+    return { deleted: true };
 }
 
 export function getUserSyncData(userId) {

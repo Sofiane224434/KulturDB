@@ -76,19 +76,21 @@ Variables OAuth GitHub:
 - Les anime sont exclus de la page /series et de la source series utilisee sur l accueil/recherche series
 - Tops personnels visibles dans /library (top films, top series, top anime, top manga, etc.), avec gestion locale via le stockage navigateur
 - Alias legacy conserve: /watchlist redirige vers /library
-- Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, et gestion d amis depuis /profile (compte connecte)
-- Profil: page /profile recentree sur resume compte + statistiques, avec pages dediees /settings (pseudo + couleur), /friends (gestion amis) et /planning (roadmap)
+- Profil: pseudo modifiable, statistiques (temps regarde, volumes par type), option d affichage des cards en couleur, photo de profil, mode prive/public et gestion des abonnements (compte connecte)
+- Profil: page /profile recentree sur resume compte + statistiques, avec pages dediees /settings (pseudo + avatar + confidentialite), /friends (abonnes/abonnements) et /planning (roadmap)
 - Commentaires films/series: choix de visibilite `public` ou `prive` a la publication
 - Activite publique profil: seuls les commentaires `public` sont pris en compte dans les compteurs/details visibles par les autres
 - Profil: roadmap personnelle en file sequentielle (prochain puis suivant...), sans date obligatoire, avec ajout libre + filtres par categorie + options rapides depuis les elements a 0 progression / a reprendre
 - Profil: 5 recommandations ciblees par score de pertinence (types preferes, historique reels tops/bibliotheque, similarite titres + genres), en excluant ce qui est deja vu ou deja planifie
-- Profil: acces au profil d un autre utilisateur depuis la recherche/les listes d amis (`/profile/:userId`)
+- Profil: acces au profil d un autre utilisateur depuis la recherche/les listes d abonnements (`/profile/:userId`)
 - Profil utilisateur public (`/profile/:userId`): affichage de l activite synchronisee (tops, suivi, notes, commentaires, moyenne)
 - Profil utilisateur public (`/profile/:userId`): details visibles pour tops/suivi/termines/notes/commentaires (pas seulement les compteurs)
 - Profil utilisateur public (`/profile/:userId`): details affiches en cards (avec affiche quand disponible) et lien vers les pages detail media
-- Profil utilisateur public (`/profile/:userId`): section `A voir ensemble` basee sur les habitudes communes, sans inclure les contenus deja termines par l un des deux
+- Profil utilisateur (`/profile/:userId`): reseau visible (abonnes/abonnements) avec indicateur `ami` quand abonnement mutuel
+- Profil utilisateur (`/profile/:userId`): commentaires de profil (lecture, ajout, suppression auteur/proprietaire)
+- Profil utilisateur prive (`/profile/:userId`): acces complet reserve au proprietaire ou aux abonnes acceptes; sinon seules photo + infos de volume social sont visibles
 - Navigation: sidebar desktop repliable/depliable avec memorisation locale de l etat (bouton flottant "Menu" retire)
-- Profil amis: l email des autres utilisateurs est masque (recherche, amis, demandes), recherche par pseudo uniquement
+- Profil social: l email des autres utilisateurs est masque (recherche, abonnements, demandes), recherche par pseudo uniquement
 - Profil: le temps regarde est affiche en mois / jours / heures
 - Bibliotheque/Tops: reclassification automatique des anciens anime stockes par erreur comme series lors du rafraichissement TMDB
 - Bibliotheque/Tops: reclassification anime renforcee via croisement TMDB + Jikan (MyAnimeList) pour eviter les faux `series`
@@ -136,13 +138,16 @@ Routes API auth:
 - PUT /api/auth/sync-data
 - GET /api/auth/media-catalog
 - GET /api/auth/media-overrides/:mediaType/:mediaRefId
-- PATCH /api/auth/me/display-name
+- PATCH /api/auth/me/settings
 - GET /api/auth/users/search?query=...
 - GET /api/auth/users/:userId
-- GET /api/auth/friends
-- POST /api/auth/friends/requests
-- POST /api/auth/friends/requests/:requestId/accept
-- DELETE /api/auth/friends/:userId
+- GET /api/auth/subscriptions
+- POST /api/auth/subscriptions/:userId
+- POST /api/auth/subscriptions/:userId/accept
+- DELETE /api/auth/subscriptions/:userId
+- GET /api/auth/users/:userId/profile-comments
+- POST /api/auth/users/:userId/profile-comments
+- DELETE /api/auth/users/:userId/profile-comments/:commentId
 - GET /api/auth/admin/media-entries
 - POST /api/auth/admin/media-entries
 - PATCH /api/auth/admin/media-entries/:entryId

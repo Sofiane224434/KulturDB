@@ -9,17 +9,22 @@ function Settings() {
   const { preferences, updatePreferences } = useUiPreferences();
 
   const [displayName, setDisplayName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     setDisplayName(user?.displayName || '');
-  }, [user?.displayName]);
+    setAvatarUrl(user?.avatarUrl || '');
+    setIsPrivate(!!user?.isPrivate);
+  }, [user?.displayName, user?.avatarUrl, user?.isPrivate]);
 
-  const handleUpdateDisplayName = async (event) => {
+  const handleUpdateProfileSettings = async (event) => {
     event.preventDefault();
     const nextDisplayName = String(displayName || '').trim();
+    const nextAvatarUrl = String(avatarUrl || '').trim();
 
     if (!nextDisplayName) {
       setError('Le pseudo est requis.');
@@ -31,12 +36,18 @@ function Settings() {
       setSaving(true);
       setError('');
       setSuccessMessage('');
-      const data = await authApi.updateDisplayName(nextDisplayName);
+      const data = await authApi.updateProfileSettings({
+        displayName: nextDisplayName,
+        avatarUrl: nextAvatarUrl || null,
+        isPrivate,
+      });
       setUser(data.user);
       setDisplayName(data.user?.displayName || nextDisplayName);
-      setSuccessMessage('Pseudo mis a jour.');
+      setAvatarUrl(data.user?.avatarUrl || nextAvatarUrl);
+      setIsPrivate(!!data.user?.isPrivate);
+      setSuccessMessage('Profil mis a jour.');
     } catch (err) {
-      setError(err.message || 'Impossible de mettre a jour le pseudo.');
+      setError(err.message || 'Impossible de mettre a jour le profil.');
     } finally {
       setSaving(false);
     }
@@ -67,11 +78,11 @@ function Settings() {
               <p className="font-serif text-gray-600">{user?.email}</p>
             </div>
 
-            <form onSubmit={handleUpdateDisplayName} className="border border-gray-300 bg-gray-50 p-4">
-              <label htmlFor="displayName" className="block text-xs uppercase tracking-wider text-gray-500 font-display mb-2">
-                Changer mon pseudo
-              </label>
-              <div className="flex flex-col sm:flex-row gap-3">
+            <form onSubmit={handleUpdateProfileSettings} className="border border-gray-300 bg-gray-50 p-4 space-y-4">
+              <div>
+                <label htmlFor="displayName" className="block text-xs uppercase tracking-wider text-gray-500 font-display mb-2">
+                  Changer mon pseudo
+                </label>
                 <input
                   id="displayName"
                   type="text"
@@ -82,6 +93,38 @@ function Settings() {
                   minLength={2}
                   maxLength={50}
                 />
+              </div>
+
+              <div>
+                <label htmlFor="avatarUrl" className="block text-xs uppercase tracking-wider text-gray-500 font-display mb-2">
+                  URL photo de profil
+                </label>
+                <input
+                  id="avatarUrl"
+                  type="url"
+                  value={avatarUrl}
+                  onChange={(event) => setAvatarUrl(event.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 border border-gray-400 bg-white text-gray-800 font-serif"
+                  maxLength={500}
+                />
+              </div>
+
+              <label className="flex items-center justify-between gap-4 border border-gray-300 bg-white p-3 cursor-pointer">
+                <div>
+                  <p className="font-display uppercase tracking-wider text-sm text-gray-700">Profil prive</p>
+                  <p className="font-serif text-sm text-gray-500">Seuls les abonnes acceptes voient ton activite complete.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPrivate((value) => !value)}
+                  className={`px-4 py-2 border font-display uppercase tracking-wider text-xs ${isPrivate ? 'bg-black text-white border-black' : 'bg-white text-gray-700 border-gray-400'}`}
+                >
+                  {isPrivate ? 'Active' : 'Inactive'}
+                </button>
+              </label>
+
+              <div className="flex justify-end">
                 <button
                   type="submit"
                   disabled={saving}

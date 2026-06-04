@@ -8,28 +8,28 @@ function Friends() {
 
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [friendsData, setFriendsData] = useState({ friends: [], incomingRequests: [], outgoingRequests: [] });
+  const [subscriptionsData, setSubscriptionsData] = useState({ followers: [], following: [], incomingRequests: [] });
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [friendQuery, setFriendQuery] = useState('');
   const [friendSearchResults, setFriendSearchResults] = useState([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
   const [friendActionId, setFriendActionId] = useState('');
 
-  const loadFriends = async () => {
+  const loadSubscriptions = async () => {
     if (!isAuthenticated) {
       return;
     }
 
     try {
       setLoadingFriends(true);
-      const data = await authApi.getFriends();
-      setFriendsData({
-        friends: Array.isArray(data.friends) ? data.friends : [],
+      const data = await authApi.getSubscriptions();
+      setSubscriptionsData({
+        followers: Array.isArray(data.followers) ? data.followers : [],
+        following: Array.isArray(data.following) ? data.following : [],
         incomingRequests: Array.isArray(data.incomingRequests) ? data.incomingRequests : [],
-        outgoingRequests: Array.isArray(data.outgoingRequests) ? data.outgoingRequests : [],
       });
     } catch (err) {
-      setError(err.message || 'Impossible de charger les amis.');
+      setError(err.message || 'Impossible de charger les abonnements.');
     } finally {
       setLoadingFriends(false);
     }
@@ -37,11 +37,11 @@ function Friends() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setFriendsData({ friends: [], incomingRequests: [], outgoingRequests: [] });
+      setSubscriptionsData({ followers: [], following: [], incomingRequests: [] });
       return;
     }
 
-    loadFriends();
+    loadSubscriptions();
   }, [isAuthenticated, user?.id]);
 
   const handleFriendSearch = async (event) => {
@@ -71,30 +71,30 @@ function Friends() {
     setFriendSearchResults(Array.isArray(refreshed.users) ? refreshed.users : []);
   };
 
-  const handleSendFriendRequest = async (targetUserId) => {
+  const handleFollowUser = async (targetUserId) => {
     try {
       setFriendActionId(`send-${targetUserId}`);
       setError('');
       setSuccessMessage('');
-      const data = await authApi.sendFriendRequest(targetUserId);
-      setSuccessMessage(data.message || 'Demande envoyee.');
-      await loadFriends();
+      const data = await authApi.followUser(targetUserId);
+      setSuccessMessage(data.message || 'Abonnement envoye.');
+      await loadSubscriptions();
       await refreshSearch();
     } catch (err) {
-      setError(err.message || 'Impossible d envoyer la demande.');
+      setError(err.message || 'Impossible de s abonner.');
     } finally {
       setFriendActionId('');
     }
   };
 
-  const handleAcceptFriendRequest = async (requestId) => {
+  const handleAcceptFollowRequest = async (requesterUserId) => {
     try {
-      setFriendActionId(`accept-${requestId}`);
+      setFriendActionId(`accept-${requesterUserId}`);
       setError('');
       setSuccessMessage('');
-      const data = await authApi.acceptFriendRequest(requestId);
+      const data = await authApi.acceptFollowRequest(requesterUserId);
       setSuccessMessage(data.message || 'Demande acceptee.');
-      await loadFriends();
+      await loadSubscriptions();
       await refreshSearch();
     } catch (err) {
       setError(err.message || 'Impossible d accepter cette demande.');
@@ -103,17 +103,17 @@ function Friends() {
     }
   };
 
-  const handleRemoveFriend = async (targetUserId) => {
+  const handleUnfollowUser = async (targetUserId) => {
     try {
       setFriendActionId(`remove-${targetUserId}`);
       setError('');
       setSuccessMessage('');
-      const data = await authApi.removeFriend(targetUserId);
-      setSuccessMessage(data.message || 'Relation supprimee.');
-      await loadFriends();
+      const data = await authApi.unfollowUser(targetUserId);
+      setSuccessMessage(data.message || 'Abonnement supprime.');
+      await loadSubscriptions();
       await refreshSearch();
     } catch (err) {
-      setError(err.message || 'Impossible de supprimer cette relation.');
+      setError(err.message || 'Impossible de supprimer cet abonnement.');
     } finally {
       setFriendActionId('');
     }
@@ -125,7 +125,7 @@ function Friends() {
 
       <div className="max-w-5xl mx-auto px-3 sm:px-6 py-12 md:py-20">
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-display uppercase tracking-wider text-gray-600 mb-6">
-          Amis
+          Abonnements
         </h1>
 
         {isAuthenticated ? (
@@ -133,7 +133,7 @@ function Friends() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
                 <p className="text-sm uppercase tracking-widest text-gray-500 font-display mb-1">Gestion</p>
-                <h2 className="text-2xl font-display uppercase tracking-wider text-gray-700">Ajouter des gens du site</h2>
+                <h2 className="text-2xl font-display uppercase tracking-wider text-gray-700">Suivre des profils</h2>
               </div>
               {loadingFriends ? <span className="font-serif text-sm text-gray-500">Chargement...</span> : null}
             </div>
@@ -163,37 +163,37 @@ function Friends() {
                 {friendSearchResults.map((person) => (
                   <div key={person.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-gray-300 bg-gray-50 p-3">
                     <div>
-                      <p className="font-display uppercase tracking-wider text-gray-700">{person.displayName}</p>
+                      <p className="font-display uppercase tracking-wider text-gray-700">{person.displayName} {person.isFriend ? '🤝' : ''}</p>
                       <Link to={`/profile/${person.id}`} className="font-serif text-sm text-gray-500 underline hover:text-gray-700">Voir profil</Link>
                     </div>
-                    {person.relationStatus === 'friend' ? (
+                    {person.outgoingStatus === 'accepted' ? (
                       <button
                         type="button"
-                        onClick={() => handleRemoveFriend(person.id)}
+                        onClick={() => handleUnfollowUser(person.id)}
                         disabled={friendActionId === `remove-${person.id}`}
                         className="px-4 py-2 border border-gray-400 bg-white text-gray-700 font-display uppercase tracking-wider text-xs disabled:opacity-60"
                       >
-                        {friendActionId === `remove-${person.id}` ? '...' : 'Retirer'}
+                        {friendActionId === `remove-${person.id}` ? '...' : 'Se desabonner'}
                       </button>
-                    ) : person.relationStatus === 'incoming_request' ? (
+                    ) : person.incomingStatus === 'pending' ? (
                       <button
                         type="button"
-                        onClick={() => handleAcceptFriendRequest(person.friendshipId)}
-                        disabled={friendActionId === `accept-${person.friendshipId}`}
+                        onClick={() => handleAcceptFollowRequest(person.id)}
+                        disabled={friendActionId === `accept-${person.id}`}
                         className="px-4 py-2 bg-black text-gray-300 border border-gray-800 font-display uppercase tracking-wider text-xs disabled:opacity-60"
                       >
-                        {friendActionId === `accept-${person.friendshipId}` ? '...' : 'Accepter'}
+                        {friendActionId === `accept-${person.id}` ? '...' : 'Accepter la demande'}
                       </button>
-                    ) : person.relationStatus === 'outgoing_request' ? (
-                      <span className="px-4 py-2 border border-gray-300 bg-white text-gray-500 font-display uppercase tracking-wider text-xs">Demande envoyee</span>
+                    ) : person.outgoingStatus === 'pending' ? (
+                      <span className="px-4 py-2 border border-gray-300 bg-white text-gray-500 font-display uppercase tracking-wider text-xs">Demande en attente</span>
                     ) : (
                       <button
                         type="button"
-                        onClick={() => handleSendFriendRequest(person.id)}
+                        onClick={() => handleFollowUser(person.id)}
                         disabled={friendActionId === `send-${person.id}`}
                         className="px-4 py-2 bg-black text-gray-300 border border-gray-800 font-display uppercase tracking-wider text-xs disabled:opacity-60"
                       >
-                        {friendActionId === `send-${person.id}` ? '...' : 'Ajouter'}
+                        {friendActionId === `send-${person.id}` ? '...' : 'S abonner'}
                       </button>
                     )}
                   </div>
@@ -203,43 +203,43 @@ function Friends() {
 
             <div className="grid lg:grid-cols-3 gap-4">
               <div className="border border-gray-300 bg-gray-50 p-4">
-                <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Mes amis</p>
+                <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Mes abonnes</p>
                 <div className="space-y-2">
-                  {friendsData.friends.length ? friendsData.friends.map((friend) => (
-                    <div key={friend.id} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-3">
+                  {subscriptionsData.followers.length ? subscriptionsData.followers.map((follower) => (
+                    <div key={follower.id} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-3">
                       <div>
-                        <p className="font-display uppercase tracking-wider text-gray-700">{friend.displayName}</p>
-                        <Link to={`/profile/${friend.id}`} className="font-serif text-sm text-gray-500 underline hover:text-gray-700">Voir profil</Link>
+                        <p className="font-display uppercase tracking-wider text-gray-700">{follower.displayName} {follower.isFriend ? '🤝' : ''}</p>
+                        <Link to={`/profile/${follower.id}`} className="font-serif text-sm text-gray-500 underline hover:text-gray-700">Voir profil</Link>
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleRemoveFriend(friend.id)}
-                        disabled={friendActionId === `remove-${friend.id}`}
+                        onClick={() => handleFollowUser(follower.id)}
+                        disabled={friendActionId === `send-${follower.id}`}
                         className="px-3 py-2 border border-gray-400 bg-white text-gray-700 font-display uppercase tracking-wider text-xs disabled:opacity-60"
                       >
-                        {friendActionId === `remove-${friend.id}` ? '...' : 'Retirer'}
+                        {friendActionId === `send-${follower.id}` ? '...' : 'Rendre abonnement'}
                       </button>
                     </div>
-                  )) : <p className="font-serif text-sm text-gray-500">Aucun ami pour le moment.</p>}
+                  )) : <p className="font-serif text-sm text-gray-500">Aucun abonne pour le moment.</p>}
                 </div>
               </div>
 
               <div className="border border-gray-300 bg-gray-50 p-4">
                 <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Demandes recues</p>
                 <div className="space-y-2">
-                  {friendsData.incomingRequests.length ? friendsData.incomingRequests.map((request) => (
-                    <div key={request.requestId} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-3">
+                  {subscriptionsData.incomingRequests.length ? subscriptionsData.incomingRequests.map((request) => (
+                    <div key={request.id} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-3">
                       <div>
                         <p className="font-display uppercase tracking-wider text-gray-700">{request.displayName}</p>
                         <Link to={`/profile/${request.id}`} className="font-serif text-sm text-gray-500 underline hover:text-gray-700">Voir profil</Link>
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleAcceptFriendRequest(request.requestId)}
-                        disabled={friendActionId === `accept-${request.requestId}`}
+                        onClick={() => handleAcceptFollowRequest(request.id)}
+                        disabled={friendActionId === `accept-${request.id}`}
                         className="px-3 py-2 bg-black text-gray-300 border border-gray-800 font-display uppercase tracking-wider text-xs disabled:opacity-60"
                       >
-                        {friendActionId === `accept-${request.requestId}` ? '...' : 'Accepter'}
+                        {friendActionId === `accept-${request.id}` ? '...' : 'Accepter'}
                       </button>
                     </div>
                   )) : <p className="font-serif text-sm text-gray-500">Aucune demande en attente.</p>}
@@ -247,24 +247,24 @@ function Friends() {
               </div>
 
               <div className="border border-gray-300 bg-gray-50 p-4">
-                <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Demandes envoyees</p>
+                <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Mes abonnements</p>
                 <div className="space-y-2">
-                  {friendsData.outgoingRequests.length ? friendsData.outgoingRequests.map((request) => (
-                    <div key={request.requestId} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-3">
+                  {subscriptionsData.following.length ? subscriptionsData.following.map((following) => (
+                    <div key={following.id} className="flex items-center justify-between gap-2 border border-gray-300 bg-white p-3">
                       <div>
-                        <p className="font-display uppercase tracking-wider text-gray-700">{request.displayName}</p>
-                        <Link to={`/profile/${request.id}`} className="font-serif text-sm text-gray-500 underline hover:text-gray-700">Voir profil</Link>
+                        <p className="font-display uppercase tracking-wider text-gray-700">{following.displayName} {following.isFriend ? '🤝' : ''}</p>
+                        <Link to={`/profile/${following.id}`} className="font-serif text-sm text-gray-500 underline hover:text-gray-700">Voir profil</Link>
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleRemoveFriend(request.id)}
-                        disabled={friendActionId === `remove-${request.id}`}
+                        onClick={() => handleUnfollowUser(following.id)}
+                        disabled={friendActionId === `remove-${following.id}`}
                         className="px-3 py-2 border border-gray-400 bg-white text-gray-700 font-display uppercase tracking-wider text-xs disabled:opacity-60"
                       >
-                        {friendActionId === `remove-${request.id}` ? '...' : 'Annuler'}
+                        {friendActionId === `remove-${following.id}` ? '...' : 'Se desabonner'}
                       </button>
                     </div>
-                  )) : <p className="font-serif text-sm text-gray-500">Aucune demande envoyee.</p>}
+                  )) : <p className="font-serif text-sm text-gray-500">Aucun abonnement pour le moment.</p>}
                 </div>
               </div>
             </div>
@@ -272,7 +272,7 @@ function Friends() {
         ) : (
           <div className="border-2 border-gray-300 bg-white p-6 md:p-10">
             <p className="font-serif text-xl text-gray-600 mb-4">Vous n etes pas connecte.</p>
-            <p className="font-serif text-gray-500 mb-6">Connectez-vous pour gerer vos amis.</p>
+            <p className="font-serif text-gray-500 mb-6">Connectez-vous pour gerer vos abonnements.</p>
             <div className="flex flex-wrap gap-3">
               <Link to="/login" className="px-4 py-2 bg-black text-gray-300 border border-gray-800 font-display uppercase tracking-wider text-sm">
                 Connexion

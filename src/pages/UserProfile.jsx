@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../services/authApi';
 import { tmdbService } from '../services/tmdb';
-import { useLibrary } from '../hooks/useLocalStorage';
 
 function normalizeDetailMediaType(value) {
   if (value === 'movie') {
@@ -33,12 +32,6 @@ function getDetailLink(entry) {
   }
 
   return `/reading/${mediaType}/${id}`;
-}
-
-function getEntryKey(entry) {
-  const mediaType = normalizeDetailMediaType(entry?.type);
-  const id = entry?.id || entry?.itemId;
-  return `${mediaType}:${String(id || '')}`;
 }
 
 function ActivityDetailCards({ entries, emptyLabel, metaLabel }) {
@@ -89,53 +82,34 @@ function ActivityDetailCards({ entries, emptyLabel, metaLabel }) {
 function UserProfile() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const { getLibrary } = useLibrary();
+  const { isAuthenticated, user } = useAuth();
   const [profile, setProfile] = useState(null);
+  const [relationship, setRelationship] = useState(null);
+  const [social, setSocial] = useState({ followersCount: 0, followingCount: 0, followers: [], following: [] });
+  const [canViewFull, setCanViewFull] = useState(false);
   const [publicActivity, setPublicActivity] = useState(null);
+  const [profileComments, setProfileComments] = useState([]);
+  const [commentDraft, setCommentDraft] = useState('');
   const [activeDetail, setActiveDetail] = useState('topPicks');
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const watchTogetherSuggestions = useMemo(() => {
-    if (!publicActivity) {
-      return [];
+  const loadProfile = async (targetUserId) => {
+    const data = await authApi.getUserProfile(targetUserId);
+    setProfile(data.user || null);
+    setRelationship(data.relationship || null);
+    setCanViewFull(!!data.canViewFull);
+    setSocial(data.social || { followersCount: 0, followingCount: 0, followers: [], following: [] });
+    setPublicActivity(data.publicActivity || null);
+
+    if (data.canViewFull) {
+      const commentsData = await authApi.getProfileComments(targetUserId);
+      setProfileComments(Array.isArray(commentsData.comments) ? commentsData.comments : []);
+    } else {
+      setProfileComments([]);
     }
-
-    const myLibrary = getLibrary();
-    const myCompleted = myLibrary.filter((entry) => entry?.status === 'done');
-    const myCompletedTypes = new Set(myCompleted.map((entry) => normalizeDetailMediaType(entry?.type)));
-    const myCompletedKeys = new Set(myCompleted.map((entry) => getEntryKey(entry)));
-
-    const theirCompleted = Array.isArray(publicActivity.details?.completed) ? publicActivity.details.completed : [];
-    const theirCompletedTypes = new Set(theirCompleted.map((entry) => normalizeDetailMediaType(entry?.type)));
-    const theirCompletedKeys = new Set(theirCompleted.map((entry) => getEntryKey(entry)));
-
-    const sharedTypes = Array.from(myCompletedTypes).filter((type) => theirCompletedTypes.has(type));
-    const allowedTypes = sharedTypes.length > 0 ? sharedTypes : ['movie', 'series'];
-
-    const rawCandidates = [
-      ...(Array.isArray(publicActivity.details?.roadmap) ? publicActivity.details.roadmap : []),
-      ...(Array.isArray(publicActivity.recentTopPicks) ? publicActivity.recentTopPicks : []),
-    ];
-
-    const deduped = new Map();
-    for (const entry of rawCandidates) {
-      const key = getEntryKey(entry);
-      const normalizedType = normalizeDetailMediaType(entry?.type);
-      if (!entry?.id || !allowedTypes.includes(normalizedType)) {
-        continue;
-      }
-      if (myCompletedKeys.has(key) || theirCompletedKeys.has(key)) {
-        continue;
-      }
-      if (!deduped.has(key)) {
-        deduped.set(key, entry);
-      }
-    }
-
-    return Array.from(deduped.values()).slice(0, 8);
-  }, [publicActivity, getLibrary]);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -151,16 +125,18 @@ function UserProfile() {
       try {
         setLoading(true);
         setError('');
-        const data = await authApi.getUserProfile(userId);
         if (!cancelled) {
-          setProfile(data.user || null);
-          setPublicActivity(data.publicActivity || null);
+          await loadProfile(userId);
         }
       } catch (err) {
         if (!cancelled) {
           setError(err.message || 'Impossible de charger ce profil.');
           setProfile(null);
+          setRelationship(null);
+          setSocial({ followersCount: 0, followingCount: 0, followers: [], following: [] });
+          setCanViewFull(false);
           setPublicActivity(null);
+          setProfileComments([]);
         }
       } finally {
         if (!cancelled) {
@@ -175,6 +151,61 @@ function UserProfile() {
       cancelled = true;
     };
   }, [isAuthenticated, userId]);
+
+  const handleFollowAction = async (action) => {
+    try {
+      setActionLoading(true);
+      setError('');
+
+      if (action === 'follow') {
+        await authApi.followUser(userId);
+      } else if (action === 'accept') {
+        await authApi.acceptFollowRequest(userId);
+      } else if (action === 'unfollow') {
+        await authApi.unfollowUser(userId);
+      }
+
+      await loadProfile(userId);
+    } catch (err) {
+      setError(err.message || 'Action impossible.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCommentSubmit = async (event) => {
+    event.preventDefault();
+    const content = String(commentDraft || '').trim();
+    if (content.length < 2) {
+      setError('Le commentaire doit contenir au moins 2 caracteres.');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setError('');
+      const data = await authApi.addProfileComment(userId, content);
+      setProfileComments(Array.isArray(data.comments) ? data.comments : []);
+      setCommentDraft('');
+    } catch (err) {
+      setError(err.message || 'Impossible d ajouter le commentaire.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      setActionLoading(true);
+      setError('');
+      const data = await authApi.deleteProfileComment(userId, commentId);
+      setProfileComments(Array.isArray(data.comments) ? data.comments : []);
+    } catch (err) {
+      setError(err.message || 'Impossible de supprimer le commentaire.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   if (!isAuthenticated) {
     return (
@@ -223,12 +254,96 @@ function UserProfile() {
         ) : profile ? (
           <>
             <section className="border-2 border-gray-300 bg-white p-6 md:p-10">
-              <p className="text-sm uppercase tracking-widest text-gray-500 font-display mb-2">Utilisateur</p>
-              <p className="text-3xl md:text-4xl font-display uppercase tracking-wider text-gray-700 mb-2">{profile.displayName}</p>
-              <p className="font-serif text-gray-600">Membre depuis {new Date(profile.createdAt).toLocaleDateString('fr-FR')}</p>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-full border border-gray-300 bg-gray-100 overflow-hidden flex items-center justify-center">
+                    {profile.avatarUrl ? (
+                      <img src={profile.avatarUrl} alt={profile.displayName} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="font-display text-2xl text-gray-500">{String(profile.displayName || '?').slice(0, 1).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm uppercase tracking-widest text-gray-500 font-display mb-2">Utilisateur</p>
+                    <p className="text-3xl md:text-4xl font-display uppercase tracking-wider text-gray-700 mb-2">{profile.displayName} {relationship?.isFriend ? '🤝' : ''}</p>
+                    <p className="font-serif text-gray-600">Membre depuis {new Date(profile.createdAt).toLocaleDateString('fr-FR')}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-start md:items-end gap-2">
+                  <p className="font-serif text-sm text-gray-600">Abonnes: {social.followersCount || 0}</p>
+                  <p className="font-serif text-sm text-gray-600">Abonnements: {social.followingCount || 0}</p>
+                  {user?.id === profile.id ? null : relationship?.outgoingStatus === 'accepted' ? (
+                    <button
+                      type="button"
+                      onClick={() => handleFollowAction('unfollow')}
+                      disabled={actionLoading}
+                      className="px-3 py-2 border border-gray-400 bg-white text-gray-700 font-display uppercase tracking-wider text-xs disabled:opacity-60"
+                    >
+                      Se desabonner
+                    </button>
+                  ) : relationship?.incomingStatus === 'pending' ? (
+                    <button
+                      type="button"
+                      onClick={() => handleFollowAction('accept')}
+                      disabled={actionLoading}
+                      className="px-3 py-2 bg-black text-gray-300 border border-gray-800 font-display uppercase tracking-wider text-xs disabled:opacity-60"
+                    >
+                      Accepter la demande
+                    </button>
+                  ) : relationship?.outgoingStatus === 'pending' ? (
+                    <span className="px-3 py-2 border border-gray-300 bg-white text-gray-500 font-display uppercase tracking-wider text-xs">Demande en attente</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleFollowAction('follow')}
+                      disabled={actionLoading}
+                      className="px-3 py-2 bg-black text-gray-300 border border-gray-800 font-display uppercase tracking-wider text-xs disabled:opacity-60"
+                    >
+                      S abonner
+                    </button>
+                  )}
+                </div>
+              </div>
             </section>
 
-            <section className="border-2 border-gray-300 bg-white p-6 md:p-10">
+            {!canViewFull ? (
+              <section className="border-2 border-gray-300 bg-white p-6 md:p-10">
+                <h2 className="text-2xl font-display uppercase tracking-wider text-gray-700 mb-3">Profil prive</h2>
+                <p className="font-serif text-gray-600">Ce profil est prive. Envoie une demande d abonnement et attends son acceptation pour voir l activite complete.</p>
+              </section>
+            ) : null}
+
+            {canViewFull ? (
+              <section className="border-2 border-gray-300 bg-white p-6 md:p-10">
+                <h2 className="text-2xl font-display uppercase tracking-wider text-gray-700 mb-3">Reseau</h2>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="border border-gray-300 bg-gray-50 p-4">
+                    <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Abonnes</p>
+                    <div className="space-y-2 max-h-64 overflow-auto pr-1">
+                      {social.followers?.length ? social.followers.map((entry) => (
+                        <Link key={`follower-${entry.id}`} to={`/profile/${entry.id}`} className="flex items-center justify-between border border-gray-300 bg-white p-2 hover:bg-gray-100">
+                          <span className="font-display uppercase tracking-wider text-gray-700 text-sm">{entry.displayName} {entry.isFriend ? '🤝' : ''}</span>
+                        </Link>
+                      )) : <p className="font-serif text-sm text-gray-500">Aucun abonne visible.</p>}
+                    </div>
+                  </div>
+                  <div className="border border-gray-300 bg-gray-50 p-4">
+                    <p className="text-xs uppercase tracking-wider text-gray-500 font-display mb-3">Abonnements</p>
+                    <div className="space-y-2 max-h-64 overflow-auto pr-1">
+                      {social.following?.length ? social.following.map((entry) => (
+                        <Link key={`following-${entry.id}`} to={`/profile/${entry.id}`} className="flex items-center justify-between border border-gray-300 bg-white p-2 hover:bg-gray-100">
+                          <span className="font-display uppercase tracking-wider text-gray-700 text-sm">{entry.displayName} {entry.isFriend ? '🤝' : ''}</span>
+                        </Link>
+                      )) : <p className="font-serif text-sm text-gray-500">Aucun abonnement visible.</p>}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            ) : null}
+
+            {canViewFull ? (
+              <section className="border-2 border-gray-300 bg-white p-6 md:p-10">
               <h2 className="text-2xl font-display uppercase tracking-wider text-gray-700 mb-3">Activite publique</h2>
               {publicActivity ? (
                 <>
@@ -379,19 +494,52 @@ function UserProfile() {
               ) : (
                 <p className="font-serif text-gray-600">Aucune activite synchronisee visible pour le moment.</p>
               )}
-            </section>
+              </section>
+            ) : null}
 
-            <section className="border-2 border-gray-300 bg-white p-6 md:p-10">
-              <h2 className="text-2xl font-display uppercase tracking-wider text-gray-700 mb-3">A voir ensemble</h2>
-              <p className="font-serif text-sm text-gray-600 mb-4">
-                Proposition basee sur vos habitudes communes (exclusion automatique des contenus deja termines par l un de vous).
-              </p>
-              <ActivityDetailCards
-                entries={watchTogetherSuggestions}
-                emptyLabel="Pas encore assez de points communs pour proposer une selection partagee."
-                metaLabel={(entry) => `Type: ${String(entry?.type || 'media').toUpperCase()}`}
-              />
-            </section>
+            {canViewFull ? (
+              <section className="border-2 border-gray-300 bg-white p-6 md:p-10">
+                <h2 className="text-2xl font-display uppercase tracking-wider text-gray-700 mb-3">Commentaires du profil</h2>
+                <form onSubmit={handleCommentSubmit} className="mb-4 flex flex-col gap-3">
+                  <textarea
+                    value={commentDraft}
+                    onChange={(event) => setCommentDraft(event.target.value)}
+                    className="w-full min-h-24 px-3 py-2 border border-gray-400 bg-white text-gray-800 font-serif"
+                    placeholder="Laisser un commentaire sur ce profil..."
+                    maxLength={500}
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={actionLoading}
+                      className="px-4 py-2 bg-black text-gray-300 border border-gray-800 font-display uppercase tracking-wider text-xs disabled:opacity-60"
+                    >
+                      Publier
+                    </button>
+                  </div>
+                </form>
+
+                <div className="space-y-3">
+                  {profileComments.length ? profileComments.map((comment) => (
+                    <article key={`profile-comment-${comment.id}`} className="border border-gray-300 bg-gray-50 p-3">
+                      <div className="flex items-center justify-between gap-3 mb-2">
+                        <p className="font-display uppercase tracking-wider text-sm text-gray-700">{comment.author?.displayName || 'Utilisateur'}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteComment(comment.id)}
+                          disabled={actionLoading}
+                          hidden={!(comment.author?.id === user?.id || profile?.id === user?.id)}
+                          className="px-2 py-1 border border-gray-400 bg-white text-gray-700 font-display uppercase tracking-wider text-xs disabled:opacity-60"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                      <p className="font-serif text-sm text-gray-700 whitespace-pre-wrap">{comment.content}</p>
+                    </article>
+                  )) : <p className="font-serif text-sm text-gray-500">Aucun commentaire pour le moment.</p>}
+                </div>
+              </section>
+            ) : null}
           </>
         ) : null}
       </div>

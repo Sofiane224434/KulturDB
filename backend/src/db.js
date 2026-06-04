@@ -102,6 +102,20 @@ db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_media_tmdb_unique
     ON admin_media_entries(source_type, media_type, media_ref_id)
     WHERE source_type = 'tmdb' AND media_ref_id IS NOT NULL;
+
+  CREATE TABLE IF NOT EXISTS profile_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_user_id INTEGER NOT NULL,
+    author_user_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (profile_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (author_user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_profile_comments_profile ON profile_comments(profile_user_id);
+  CREATE INDEX IF NOT EXISTS idx_profile_comments_author ON profile_comments(author_user_id);
 `);
 
 const userSyncColumns = db
@@ -120,4 +134,12 @@ const userColumns = db
 
 if (!userColumns.includes('role')) {
   db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
+}
+
+if (!userColumns.includes('avatar_url')) {
+  db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT");
+}
+
+if (!userColumns.includes('is_private')) {
+  db.exec("ALTER TABLE users ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0");
 }

@@ -4,21 +4,26 @@ import passport from 'passport';
 import { config } from '../utils/config.js';
 import { requireAdmin, requireAuth } from '../utils/authMiddleware.js';
 import {
-    acceptFriendRequest,
     createLocalUser,
-    createFriendRequest,
-    deleteFriendshipBetweenUsers,
-    findFriendshipBetweenUsers,
+    createFollowRequest,
+    createProfileComment,
+    deleteFollowRelation,
+    deleteProfileComment,
+    findFollowRelation,
     findPublicUserById,
     findUserByEmail,
     findUserById,
     findPendingByEmail,
     getValidPendingRegistrationToken,
     markPendingRegistrationUsed,
+    getRelationshipBetweenUsers,
     getUserSyncData,
-    listFriendsForUser,
-    listIncomingFriendRequests,
-    listOutgoingFriendRequests,
+    countFollowers,
+    countFollowing,
+    listFollowersForUser,
+    listFollowingForUser,
+    listIncomingFollowRequests,
+    listProfileComments,
     publicUser,
     searchUsers,
     storeVerificationToken,
@@ -33,7 +38,8 @@ import {
     updateAdminMediaEntry,
     deleteAdminMediaEntry,
     updateUserVerification,
-    updateUserDisplayName,
+    updateUserProfileSettings,
+    updateFollowStatus,
     upsertUserSyncData,
 } from '../services/userRepository.js';
 import {
@@ -153,38 +159,21 @@ function getSafeRedirectPath(value) {
     return value;
 }
 
-function toFriendRelation(currentUserId, row) {
-    let relationship = 'none';
-
-    if (row.friendship_id) {
-        if (row.friendship_status === 'accepted') {
-            relationship = 'friend';
-        } else if (row.requester_id === currentUserId) {
-            relationship = 'outgoing';
-        } else {
-            relationship = 'incoming';
-        }
-    }
+function toSubscriptionRelation(row) {
+    const outgoingStatus = row.outgoing_status || 'none';
+    const incomingStatus = row.incoming_status || 'none';
+    const isFriend = outgoingStatus === 'accepted' && incomingStatus === 'accepted';
 
     return {
         id: row.id,
         displayName: row.display_name,
+        avatarUrl: row.avatar_url || null,
         provider: row.provider,
+        isPrivate: !!row.is_private,
         createdAt: row.created_at,
-        relationship,
-        relationStatus: relationship,
-        requestId: row.friendship_id || null,
-        friendshipId: row.friendship_id || null,
-    };
-}
-
-function toFriendListItem(row) {
-    return {
-        id: row.id,
-        displayName: row.display_name,
-        provider: row.provider,
-        createdAt: row.created_at,
-        requestId: row.request_id || null,
+        outgoingStatus,
+        incomingStatus,
+        isFriend,
     };
 }
 
@@ -552,7 +541,7 @@ router.get('/users/search', requireAuth, (req, res) => {
         return res.json({ users: [] });
     }
 
-    const users = searchUsers(query, req.user.id).map((row) => toFriendRelation(req.user.id, row));
+    const users = searchUsers(query, req.user.id).map((row) => toSubscriptionRelation(row));
     return res.json({ users });
 });
 
@@ -567,30 +556,48 @@ router.get('/users/:userId', requireAuth, (req, res) => {
         return res.status(404).json({ message: 'Profil introuvable.' });
     }
 
-    const syncData = getUserSyncData(userId);
-    const publicActivity = buildPublicActivity(syncData);
+    const relationship = getRelationshipBetweenUsers(req.user.id, userId);
+    const isOwner = req.user.id === userId;
+    const canViewFull = isOwner || !user.is_private || relationship.outgoingStatus === 'accepted';
+
+    const followersCount = countFollowers(userId);
+    const followingCount = countFollowing(userId);
+
+    const social = {
+        followersCount,
+        followingCount,
+        followers: canViewFull ? listFollowersForUser(userId, req.user.id) : [],
+        following: canViewFull ? listFollowingForUser(userId, req.user.id) : [],
+    };
+
+    const publicActivity = canViewFull ? buildPublicActivity(getUserSyncData(userId)) : null;
 
     return res.json({
         user: {
             id: user.id,
             displayName: user.display_name,
+            avatarUrl: user.avatar_url || null,
+            isPrivate: !!user.is_private,
             provider: user.provider,
             createdAt: user.created_at,
         },
+        relationship,
+        canViewFull,
+        social,
         publicActivity,
     });
 });
 
-router.get('/friends', requireAuth, (req, res) => {
+router.get('/subscriptions', requireAuth, (req, res) => {
     return res.json({
-        friends: listFriendsForUser(req.user.id).map(toFriendListItem),
-        incomingRequests: listIncomingFriendRequests(req.user.id).map(toFriendListItem),
-        outgoingRequests: listOutgoingFriendRequests(req.user.id).map(toFriendListItem),
+        followers: listFollowersForUser(req.user.id, req.user.id),
+        following: listFollowingForUser(req.user.id, req.user.id),
+        incomingRequests: listIncomingFollowRequests(req.user.id),
     });
 });
 
-router.post('/friends/requests', requireAuth, (req, res) => {
-    const targetUserId = Number(req.body?.userId);
+router.post('/subscriptions/:userId', requireAuth, (req, res) => {
+    const targetUserId = Number(req.params.userId);
     if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
         return res.status(400).json({ message: 'Utilisateur cible invalide.' });
     }
@@ -604,66 +611,152 @@ router.post('/friends/requests', requireAuth, (req, res) => {
         return res.status(404).json({ message: 'Utilisateur introuvable.' });
     }
 
-    const existing = findFriendshipBetweenUsers(req.user.id, targetUserId);
+    const existing = findFollowRelation(req.user.id, targetUserId);
     if (existing?.status === 'accepted') {
-        return res.status(409).json({ message: 'Vous etes deja amis.' });
+        return res.status(409).json({ message: 'Tu es deja abonne.' });
     }
 
     if (existing?.status === 'pending') {
-        if (existing.requester_id === targetUserId && existing.addressee_id === req.user.id) {
-            acceptFriendRequest(existing.id, req.user.id);
-            return res.json({ message: 'Demande acceptee automatiquement.' });
-        }
-
-        return res.status(409).json({ message: 'Une demande est deja en cours.' });
+        return res.status(409).json({ message: 'Ta demande est deja en attente.' });
     }
 
-    createFriendRequest(req.user.id, targetUserId);
-    return res.status(201).json({ message: 'Demande d ami envoyee.' });
+    const status = targetUser.is_private ? 'pending' : 'accepted';
+    createFollowRequest(req.user.id, targetUserId, status);
+
+    return res.status(201).json({
+        message: status === 'pending' ? 'Demande d abonnement envoyee.' : 'Abonnement actif.',
+        status,
+    });
 });
 
-router.post('/friends/requests/:requestId/accept', requireAuth, (req, res) => {
-    const requestId = Number(req.params.requestId);
-    if (!Number.isInteger(requestId) || requestId <= 0) {
-        return res.status(400).json({ message: 'Demande invalide.' });
+router.post('/subscriptions/:userId/accept', requireAuth, (req, res) => {
+    const requesterUserId = Number(req.params.userId);
+    if (!Number.isInteger(requesterUserId) || requesterUserId <= 0) {
+        return res.status(400).json({ message: 'Utilisateur invalide.' });
     }
 
-    const accepted = acceptFriendRequest(requestId, req.user.id);
-    if (!accepted || accepted.status !== 'accepted') {
+    const pending = findFollowRelation(requesterUserId, req.user.id);
+    if (!pending || pending.status !== 'pending') {
         return res.status(404).json({ message: 'Demande introuvable.' });
     }
 
+    updateFollowStatus(requesterUserId, req.user.id, 'accepted');
     return res.json({ message: 'Demande acceptee.' });
 });
 
-router.delete('/friends/:userId', requireAuth, (req, res) => {
+router.delete('/subscriptions/:userId', requireAuth, (req, res) => {
     const targetUserId = Number(req.params.userId);
     if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
         return res.status(400).json({ message: 'Utilisateur invalide.' });
     }
 
-    const result = deleteFriendshipBetweenUsers(req.user.id, targetUserId);
+    const result = deleteFollowRelation(req.user.id, targetUserId);
     if (!result.changes) {
-        return res.status(404).json({ message: 'Relation introuvable.' });
+        return res.status(404).json({ message: 'Abonnement introuvable.' });
     }
 
-    return res.json({ message: 'Relation supprimee.' });
+    return res.json({ message: 'Abonnement supprime.' });
 });
 
-router.patch('/me/display-name', requireAuth, (req, res) => {
-    const rawDisplayName = String(req.body?.displayName || '').trim();
+router.get('/users/:userId/profile-comments', requireAuth, (req, res) => {
+    const userId = Number(req.params.userId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+        return res.status(400).json({ message: 'Utilisateur invalide.' });
+    }
 
-    if (!rawDisplayName) {
+    const user = findPublicUserById(userId);
+    if (!user) {
+        return res.status(404).json({ message: 'Profil introuvable.' });
+    }
+
+    const relationship = getRelationshipBetweenUsers(req.user.id, userId);
+    const isOwner = req.user.id === userId;
+    const canViewFull = isOwner || !user.is_private || relationship.outgoingStatus === 'accepted';
+    if (!canViewFull) {
+        return res.status(403).json({ message: 'Profil prive: abonnement accepte requis.' });
+    }
+
+    return res.json({ comments: listProfileComments(userId) });
+});
+
+router.post('/users/:userId/profile-comments', requireAuth, (req, res) => {
+    const userId = Number(req.params.userId);
+    const content = String(req.body?.content || '').trim();
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+        return res.status(400).json({ message: 'Utilisateur invalide.' });
+    }
+
+    if (content.length < 2 || content.length > 500) {
+        return res.status(400).json({ message: 'Le commentaire doit contenir entre 2 et 500 caracteres.' });
+    }
+
+    const user = findPublicUserById(userId);
+    if (!user) {
+        return res.status(404).json({ message: 'Profil introuvable.' });
+    }
+
+    const relationship = getRelationshipBetweenUsers(req.user.id, userId);
+    const isOwner = req.user.id === userId;
+    const canViewFull = isOwner || !user.is_private || relationship.outgoingStatus === 'accepted';
+    if (!canViewFull) {
+        return res.status(403).json({ message: 'Profil prive: abonnement accepte requis.' });
+    }
+
+    createProfileComment(userId, req.user.id, content);
+    return res.status(201).json({ message: 'Commentaire ajoute.', comments: listProfileComments(userId) });
+});
+
+router.delete('/users/:userId/profile-comments/:commentId', requireAuth, (req, res) => {
+    const userId = Number(req.params.userId);
+    const commentId = Number(req.params.commentId);
+
+    if (!Number.isInteger(userId) || userId <= 0 || !Number.isInteger(commentId) || commentId <= 0) {
+        return res.status(400).json({ message: 'Parametres invalides.' });
+    }
+
+    const result = deleteProfileComment(commentId, req.user.id);
+    if (!result.deleted && result.reason === 'not_found') {
+        return res.status(404).json({ message: 'Commentaire introuvable.' });
+    }
+    if (!result.deleted && result.reason === 'forbidden') {
+        return res.status(403).json({ message: 'Suppression non autorisee.' });
+    }
+
+    return res.json({ message: 'Commentaire supprime.', comments: listProfileComments(userId) });
+});
+
+router.patch('/me/settings', requireAuth, (req, res) => {
+    const rawDisplayName = String(req.body?.displayName || '').trim();
+    const hasDisplayName = Object.prototype.hasOwnProperty.call(req.body || {}, 'displayName');
+    const hasAvatarUrl = Object.prototype.hasOwnProperty.call(req.body || {}, 'avatarUrl');
+    const hasIsPrivate = Object.prototype.hasOwnProperty.call(req.body || {}, 'isPrivate');
+
+    if (!hasDisplayName && !hasAvatarUrl && !hasIsPrivate) {
+        return res.status(400).json({ message: 'Aucune modification fournie.' });
+    }
+
+    if (hasDisplayName && !rawDisplayName) {
         return res.status(400).json({ message: 'Le pseudo est requis.' });
     }
 
-    if (rawDisplayName.length < 2 || rawDisplayName.length > 50) {
+    if (hasDisplayName && (rawDisplayName.length < 2 || rawDisplayName.length > 50)) {
         return res.status(400).json({ message: 'Le pseudo doit contenir entre 2 et 50 caracteres.' });
     }
 
-    const updatedUser = updateUserDisplayName(req.user.id, rawDisplayName);
+    const rawAvatar = String(req.body?.avatarUrl || '').trim();
+    if (hasAvatarUrl && rawAvatar.length > 500) {
+        return res.status(400).json({ message: 'URL d avatar trop longue.' });
+    }
+
+    const updatedUser = updateUserProfileSettings(req.user.id, {
+        ...(hasDisplayName ? { displayName: rawDisplayName } : {}),
+        ...(hasAvatarUrl ? { avatarUrl: rawAvatar || null } : {}),
+        ...(hasIsPrivate ? { isPrivate: !!req.body?.isPrivate } : {}),
+    });
+
     return res.json({
-        message: 'Pseudo mis a jour.',
+        message: 'Profil mis a jour.',
         user: publicUser(updatedUser),
     });
 });

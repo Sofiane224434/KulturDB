@@ -47,8 +47,14 @@ export const authApi = {
             body: JSON.stringify(payload),
         }),
 
+    updateProfileSettings: (payload) =>
+        request('/auth/me/settings', {
+            method: 'PATCH',
+            body: JSON.stringify(payload),
+        }),
+
     updateDisplayName: (displayName) =>
-        request('/auth/me/display-name', {
+        request('/auth/me/settings', {
             method: 'PATCH',
             body: JSON.stringify({ displayName }),
         }),
@@ -67,7 +73,7 @@ export const authApi = {
 
     oauthProviders: () => request('/auth/oauth/providers'),
 
-    getFriends: () => request('/auth/friends'),
+    getSubscriptions: () => request('/auth/subscriptions'),
 
     searchUsers: (query) => request(`/auth/users/search?query=${encodeURIComponent(query || '')}`),
 
@@ -97,21 +103,39 @@ export const authApi = {
             method: 'DELETE',
         }),
 
-    sendFriendRequest: (userId) =>
-        request('/auth/friends/requests', {
-            method: 'POST',
-            body: JSON.stringify({ userId }),
-        }),
-
-    acceptFriendRequest: (requestId) =>
-        request(`/auth/friends/requests/${requestId}/accept`, {
+    followUser: (userId) =>
+        request(`/auth/subscriptions/${userId}`, {
             method: 'POST',
         }),
 
-    removeFriend: (userId) =>
-        request(`/auth/friends/${userId}`, {
+    acceptFollowRequest: (userId) =>
+        request(`/auth/subscriptions/${userId}/accept`, {
+            method: 'POST',
+        }),
+
+    unfollowUser: (userId) =>
+        request(`/auth/subscriptions/${userId}`, {
             method: 'DELETE',
         }),
+
+    getProfileComments: (userId) => request(`/auth/users/${encodeURIComponent(userId)}/profile-comments`),
+
+    addProfileComment: (userId, content) =>
+        request(`/auth/users/${encodeURIComponent(userId)}/profile-comments`, {
+            method: 'POST',
+            body: JSON.stringify({ content }),
+        }),
+
+    deleteProfileComment: (userId, commentId) =>
+        request(`/auth/users/${encodeURIComponent(userId)}/profile-comments/${encodeURIComponent(commentId)}`, {
+            method: 'DELETE',
+        }),
+
+    // Compatibilite temporaire pour les anciens appels
+    getFriends: () => request('/auth/subscriptions'),
+    sendFriendRequest: (userId) => request(`/auth/subscriptions/${userId}`, { method: 'POST' }),
+    acceptFriendRequest: (userId) => request(`/auth/subscriptions/${userId}/accept`, { method: 'POST' }),
+    removeFriend: (userId) => request(`/auth/subscriptions/${userId}`, { method: 'DELETE' }),
 
     getGoogleOAuthUrl: (redirectPath = '/') =>
         `${API_BASE}/auth/oauth/google?redirect=${encodeURIComponent(redirectPath)}`,
