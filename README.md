@@ -80,8 +80,8 @@ Variables OAuth GitHub:
 - Profil: page /profile recentree sur resume compte + statistiques, avec pages dediees /settings (pseudo + avatar + confidentialite), /friends (abonnes/abonnements) et /planning (roadmap)
 - Commentaires films/series: choix de visibilite `public` ou `prive` a la publication
 - Activite publique profil: seuls les commentaires `public` sont pris en compte dans les compteurs/details visibles par les autres
-- Profil: roadmap personnelle en file sequentielle (prochain puis suivant...), sans date obligatoire, avec ajout par recherche de fiches existantes + filtres par categorie + options rapides depuis les elements a 0 progression / a reprendre
-- Profil: 5 recommandations ciblees par score de pertinence (types preferes, historique reels tops/bibliotheque, similarite titres + genres), en excluant ce qui est deja vu ou deja planifie et en penalisant les contenus avec trop peu de votes TMDB quand des notes utilisateur existent deja
+- Profil: roadmap personnelle en file sequentielle (prochain puis suivant...), sans date obligatoire, avec ajout par recherche de fiches existantes + filtres par categorie + options rapides depuis les elements a 0 progression / a reprendre, et reorganisation possible en drag and drop
+- Profil: 5 recommandations ciblees par score de pertinence (types preferes, historique reels tops/bibliotheque, similarite titres + genres), en excluant ce qui est deja vu ou deja planifie et en penalisant fortement les contenus avec trop peu de votes TMDB quand des notes utilisateur existent deja
 - Profil: acces au profil d un autre utilisateur depuis la recherche/les listes d abonnements (`/profile/:userId`)
 - Profil utilisateur public (`/profile/:userId`): affichage de l activite synchronisee (tops, suivi, notes, commentaires, moyenne)
 - Profil utilisateur public (`/profile/:userId`): details visibles pour tops/suivi/termines/notes/commentaires (pas seulement les compteurs)
@@ -106,6 +106,7 @@ Variables OAuth GitHub:
 - Catalogues/detail films/series/anime: application automatique des overrides admin (masquage et corrections metadata)
 - Ajout/Detail series: resolution anime/episodes renforcee des l ajout (TMDB + Jikan + somme des saisons) pour limiter les cas classes en serie avec un total d episodes faux
 - Tops: ordre manuel possible a l interieur de chaque categorie (monter / descendre)
+- Tops: ordre manuel possible a l interieur de chaque categorie (monter / descendre) et aussi par drag and drop
 - Lisibilite texte amelioree: taille de base augmentee et champs catalogue plus grands
 
 Base lecture via API:

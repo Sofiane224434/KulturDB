@@ -71,18 +71,32 @@ function getVoteVolumePenalty(item, hasUserRatingsSignal) {
 
   const voteCount = Number(item?.voteCount || 0);
   if (!Number.isFinite(voteCount) || voteCount <= 0) {
-    return 85;
+    return 160;
+  }
+  if (voteCount <= 5) {
+    return 140;
   }
   if (voteCount <= 20) {
-    return 70;
+    return 120;
   }
   if (voteCount <= 50) {
-    return 40;
+    return 75;
   }
   if (voteCount <= 100) {
-    return 20;
+    return 35;
   }
   return 0;
+}
+
+function getTrustedVoteScore(item) {
+  const voteAverage = Number(item?.voteAverage || 0);
+  const voteCount = Number(item?.voteCount || 0);
+  if (!Number.isFinite(voteAverage) || voteAverage <= 0) {
+    return 0;
+  }
+
+  const confidence = Math.max(0.05, Math.min(voteCount / 300, 1));
+  return voteAverage * confidence;
 }
 
 function normalizePlanningSearchEntry(item, fallbackType = 'movie') {
@@ -226,7 +240,7 @@ function getRoadmapPosterUrl(item) {
 function Planning() {
   const { isAuthenticated, user } = useAuth();
   const { getLibrary } = useLibrary();
-  const { getRoadmap, addRoadmapItem, removeRoadmapItem, moveRoadmapItem } = useRoadmap();
+  const { getRoadmap, addRoadmapItem, removeRoadmapItem, moveRoadmapItem, reorderRoadmapItem } = useRoadmap();
   const { getTopPicks } = useTopPicks();
 
   const [roadmapItems, setRoadmapItems] = useState([]);
@@ -238,6 +252,7 @@ function Planning() {
   const [roadmapFilter, setRoadmapFilter] = useState('all');
   const [recommendedItems, setRecommendedItems] = useState([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [draggedRoadmapId, setDraggedRoadmapId] = useState('');
 
   useEffect(() => {
     const library = getLibrary();
@@ -378,7 +393,7 @@ function Planning() {
                 key,
                 score: seed.weight
                   + typeWeight * 0.18
-                  + normalized.voteAverage * 11
+                  + getTrustedVoteScore(normalized) * 11
                   + Math.min(normalized.popularity, 150) * 0.5
                   + overlapScore * 40
                   + titleSimilarity * 35
@@ -440,7 +455,7 @@ function Planning() {
               ...normalized,
               key,
               score: typeWeight * 0.25
-                + normalized.voteAverage * 8
+                + getTrustedVoteScore(normalized) * 8
                 + Math.min(normalized.popularity, 140) * 0.4
                 + titleSimilarity * 30
                 - getVoteVolumePenalty(normalized, hasUserRatingsSignal),
@@ -582,6 +597,17 @@ function Planning() {
     refreshRoadmapState();
   };
 
+  const handleRoadmapDrop = (targetRoadmapId) => {
+    if (!draggedRoadmapId || draggedRoadmapId === targetRoadmapId) {
+      setDraggedRoadmapId('');
+      return;
+    }
+
+    reorderRoadmapItem(draggedRoadmapId, targetRoadmapId);
+    setDraggedRoadmapId('');
+    refreshRoadmapState();
+  };
+
   return (
     <div className="vintage-frame">
       <div className="vintage-frame-top"></div>
@@ -695,7 +721,14 @@ function Planning() {
                     const detailPath = getRoadmapPath(item);
                     return (
                       <div key={item.id} className="flex items-center gap-3">
-                        <div className="w-44 block border border-gray-300 bg-gray-50 transition-colors">
+                        <div
+                          draggable
+                          onDragStart={() => setDraggedRoadmapId(item.id)}
+                          onDragEnd={() => setDraggedRoadmapId('')}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={() => handleRoadmapDrop(item.id)}
+                          className={`w-44 block border bg-gray-50 transition-colors ${draggedRoadmapId === item.id ? 'border-gray-700 opacity-60' : 'border-gray-300'}`}
+                        >
                           {detailPath ? (
                             <Link to={detailPath} className="block hover:bg-gray-100 transition-colors">
                               <div className="aspect-2/3 bg-gray-200 border-b border-gray-300 overflow-hidden">

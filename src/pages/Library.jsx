@@ -49,10 +49,11 @@ const getSeasonPosition = (progressCurrent, seasonBreakdown = []) => {
 
 function Library() {
   const { getLibrary, removeFromLibrary, updateLibraryItem, refreshLibraryMetadata } = useLibrary();
-  const { getTopPicks, removeFromTopPicks, moveTopPick, refreshTopPickTypes } = useTopPicks();
+  const { getTopPicks, removeFromTopPicks, moveTopPick, reorderTopPick, refreshTopPickTypes } = useTopPicks();
   const [items, setItems] = useState([]);
   const [progressDrafts, setProgressDrafts] = useState({});
   const [topPicks, setTopPicks] = useState([]);
+  const [draggedTopPick, setDraggedTopPick] = useState(null);
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -159,6 +160,17 @@ function Library() {
     setTopPicks(updated);
   };
 
+  const handleTopPickDrop = (targetId, type) => {
+    if (!draggedTopPick || draggedTopPick.type !== type || draggedTopPick.id === targetId) {
+      setDraggedTopPick(null);
+      return;
+    }
+
+    const updated = reorderTopPick(draggedTopPick.id, targetId, type);
+    setTopPicks(updated);
+    setDraggedTopPick(null);
+  };
+
   const groupedTopPicks = useMemo(() => {
     const grouped = topPicks.reduce((acc, item) => {
       const key = item.type || 'autre';
@@ -218,7 +230,15 @@ function Library() {
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8">
                     {list.map((item, index) => (
-                      <div key={`${type}-${item.id}`} className="relative group">
+                      <div
+                        key={`${type}-${item.id}`}
+                        draggable
+                        onDragStart={() => setDraggedTopPick({ id: item.id, type: item.type })}
+                        onDragEnd={() => setDraggedTopPick(null)}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={() => handleTopPickDrop(item.id, item.type)}
+                        className={`relative group ${draggedTopPick?.id === item.id && draggedTopPick?.type === item.type ? 'opacity-60' : ''}`}
+                      >
                         <MediaCard item={item} type={item.type} />
                         <span className="absolute top-2 left-2 bg-black text-white px-2 py-1 text-xs font-display uppercase border border-white">
                           #{index + 1}

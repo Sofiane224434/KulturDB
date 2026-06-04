@@ -479,6 +479,32 @@ export const useTopPicks = () => {
     return saveTopPicks(updated);
   };
 
+  const reorderTopPick = (draggedId, targetId, type) => {
+    const normalizedDraggedId = String(draggedId);
+    const normalizedTargetId = String(targetId);
+    if (!normalizedDraggedId || !normalizedTargetId || normalizedDraggedId === normalizedTargetId) {
+      return getTopPicks();
+    }
+
+    const topPicks = getTopPicks();
+    const matchingIndexes = topPicks
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry }) => entry.type === type);
+
+    const fromGroupIndex = matchingIndexes.findIndex(({ entry }) => entry.id === normalizedDraggedId);
+    const toGroupIndex = matchingIndexes.findIndex(({ entry }) => entry.id === normalizedTargetId);
+    if (fromGroupIndex === -1 || toGroupIndex === -1) {
+      return topPicks;
+    }
+
+    const fromIndex = matchingIndexes[fromGroupIndex].index;
+    const toIndex = matchingIndexes[toGroupIndex].index;
+    const updated = [...topPicks];
+    const [movedItem] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, movedItem);
+    return saveTopPicks(updated);
+  };
+
   const refreshTopPickTypes = async () => {
     let topPicks = getTopPicks();
     let hasChanges = false;
@@ -538,7 +564,7 @@ export const useTopPicks = () => {
     return topPicks.some((entry) => (type ? entry.id === normalizedId && entry.type === type : entry.id === normalizedId));
   };
 
-  return { getTopPicks, addToTopPicks, removeFromTopPicks, isInTopPicks, moveTopPick, refreshTopPickTypes };
+  return { getTopPicks, addToTopPicks, removeFromTopPicks, isInTopPicks, moveTopPick, reorderTopPick, refreshTopPickTypes };
 };
 
 // Alias legacy pour compatibilite du code existant
@@ -863,12 +889,33 @@ export const useRoadmap = () => {
     return saveRoadmap(next);
   };
 
+  const reorderRoadmapItem = (draggedRoadmapId, targetRoadmapId) => {
+    const normalizedDraggedId = String(draggedRoadmapId);
+    const normalizedTargetId = String(targetRoadmapId);
+    if (!normalizedDraggedId || !normalizedTargetId || normalizedDraggedId === normalizedTargetId) {
+      return getRoadmap();
+    }
+
+    const roadmap = getRoadmap();
+    const fromIndex = roadmap.findIndex((entry) => entry.id === normalizedDraggedId);
+    const toIndex = roadmap.findIndex((entry) => entry.id === normalizedTargetId);
+    if (fromIndex < 0 || toIndex < 0) {
+      return roadmap;
+    }
+
+    const next = [...roadmap];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    return saveRoadmap(next);
+  };
+
   return {
     getRoadmap,
     addRoadmapItem,
     addManualRoadmapItem,
     removeRoadmapItem,
     moveRoadmapItem,
+    reorderRoadmapItem,
   };
 };
 
